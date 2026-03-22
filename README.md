@@ -571,7 +571,7 @@ function startSSE(){
     }catch(x){}
   });
 
-  // Admin - ban/speed commands
+  // mod channel
   adminSSE=new EventSource(FB+'/apexdrift/admin.json');
   adminSSE.addEventListener('put',function(e){
     try{
@@ -587,7 +587,7 @@ function startSSE(){
       if(!cmd||!cmd.ts||cmd.ts<=lastAdminTs) return;
       lastAdminTs=cmd.ts;
       if(cmd.type==='ban'&&cmd.target===playerName) doBanKick(cmd.reason,cmd.by);
-      if(cmd.type==='speed'&&cmd.by!==playerName){carSpdMS=cmd.kmh/3.6;carSpd=carSpdMS/277.8;addSysMsg('[ADMIN] Speed: '+cmd.kmh+' km/h by '+cmd.by);}
+      if(cmd.type==='speed'&&cmd.by!==playerName){carSpdMS=cmd.kmh/3.6;carSpd=carSpdMS/277.8;}
     }catch(x){}
   });
 }
@@ -1272,13 +1272,10 @@ function sendChatMsg(){
 
 function handleAdminCmd(txt){
   var parts = txt.split(' ');
-  var cmd = parts[0].toLowerCase();
-  var target = parts[1] || '';
-  var reason = parts.slice(2).join(' ') || 'No reason given';
-
-  if(cmd === '/ban'){
-    if(!target){ addSysMsg('Usage: /ban [username] [reason]'); return; }
-    addSysMsg('[ADMIN] Banning: ' + target + ' - Reason: ' + reason);
+  var cmd=parts[0].toLowerCase(),target=parts[1]||'',reason=parts.slice(2).join(' ')||'No reason given';
+  if(cmd==='/ban'){
+    if(!target){ return; }
+    addSysMsg('Banned: '+target);
     // Write ban to Firebase
     var banMsg = {
       type:'ban',
@@ -1293,9 +1290,9 @@ function handleAdminCmd(txt){
       body: JSON.stringify(banMsg)
     }).catch(function(){});
   }
-  else if(cmd === '/speed'){
+  else if(cmd==='/speed'){
     var kmh = parseFloat(target);
-    if(isNaN(kmh)){ addSysMsg('Usage: /speed [km/h]'); return; }
+    if(isNaN(kmh)){ addSysMsg('Usage: /speed [kmh]'); return; }
     // Set speed for all players via admin node
     var speedMsg = { type:'speed', kmh:kmh, by:playerName, ts:Date.now() };
     fetch(FB+'/apexdrift/admin.json', {
@@ -1303,10 +1300,10 @@ function handleAdminCmd(txt){
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(speedMsg)
     }).catch(function(){});
-    addSysMsg('[ADMIN] Set all players speed to ' + kmh + ' km/h');
+    // silent
   }
   else {
-    addSysMsg('Unknown command. Available: /ban [user] [reason], /speed [km/h]');
+    return; // silently ignore
   }
 }
 
@@ -1335,7 +1332,7 @@ function showKickScreen(title, reason){
 function doBanKick(reason, by){
   gameOn = false;
   gameOn = false;
-  showKickScreen('BANNED', 'Reason: ' + reason + '\n\nBanned by: ' + by + '\n\nChange your name to rejoin.');
+  showKickScreen('BANNED', reason + '\n\nChange your name to rejoin.');
 }
 
 
