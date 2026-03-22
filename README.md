@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -163,6 +164,28 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
   #tgas{font-size:22px;padding:14px 32px}#tbrk{font-size:22px;padding:12px 28px}
 }
 
+
+/* SLIDERS */
+.sliders{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.sl-row{display:flex;align-items:center;gap:10px}
+.sl-label{font-size:9px;letter-spacing:4px;color:var(--neon);opacity:.4;text-transform:uppercase;width:58px;flex-shrink:0}
+.sl-track{display:flex;background:rgba(0,0,0,.4);border:1px solid var(--bdr);border-radius:3px;overflow:hidden;flex:1}
+.sl-opt{flex:1;padding:8px 4px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:3px;color:rgba(255,255,255,.35);cursor:pointer;transition:all .15s}
+.sl-opt.sl-on{background:var(--neon);color:#000}
+.sl-opt:not(.sl-on):hover{background:rgba(0,255,231,.1);color:var(--neon)}
+/* same-size race buttons */
+.race-btns{display:flex;gap:8px;margin-bottom:8px}
+.race-btn{
+  flex:1;padding:13px 8px;
+  background:var(--neon);color:#000;
+  font-family:'Bebas Neue',sans-serif;font-size:clamp(14px,3.5vw,19px);letter-spacing:4px;
+  border:none;cursor:pointer;transition:all .18s;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.race-btn:hover{background:#fff}.race-btn:active{transform:scale(.97)}
+.race-btn-mp{background:rgba(0,255,231,.12);color:var(--neon);border:1px solid var(--neon)}
+.race-btn-mp:hover{background:var(--neon);color:#000}
+
 /* ========================
    LIVE CHAT
    ======================== */
@@ -280,14 +303,27 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
     <input type="text" id="iname" placeholder="Enter callsign..." maxlength="16"/>
     <div class="fl">Car Color</div>
     <div class="swatches" id="swatch"></div>
-    <div class="fl">Camera</div>
-    <div class="vtog">
-      <button class="vbtn on" id="v3p">3RD PERSON</button>
-      <button class="vbtn" id="v1p">1ST PERSON</button>
+    <div class="sliders">
+      <div class="sl-row">
+        <div class="sl-label">CAMERA</div>
+        <div class="sl-track" id="sl-cam">
+          <div class="sl-opt sl-on" id="sl-cam-3p" onclick="setSl('cam','3p')">3RD</div>
+          <div class="sl-opt" id="sl-cam-1p" onclick="setSl('cam','1p')">1ST</div>
+        </div>
+      </div>
+      <div class="sl-row">
+        <div class="sl-label">GEARBOX</div>
+        <div class="sl-track" id="sl-trns">
+          <div class="sl-opt sl-on" id="sl-trns-auto" onclick="setSl('trns','auto')">AUTO</div>
+          <div class="sl-opt" id="sl-trns-manual" onclick="setSl('trns','manual')">MANUAL</div>
+        </div>
+      </div>
     </div>
-    <button class="btn-go" id="btn-solo">&#x25B6; SOLO RACE</button>
-    <button class="btn-mp" id="btn-mp">&#x26A1; MULTIPLAYER <span class="badge">ONLINE</span></button>
-    <div class="hint">W=Gas S=Brake A/D=Steer ArrowUp/Down=Gear Space=Drift ESC=Pause</div>
+    <div class="race-btns">
+      <button class="race-btn" id="btn-solo">&#x25B6; SOLO</button>
+      <button class="race-btn race-btn-mp" id="btn-mp">&#x26A1; ONLINE <span class="badge">MP</span></button>
+    </div>
+    <div class="hint" id="ctrl-hint">W=Gas S=Brake A/D=Steer Space=Drift ESC=Pause</div>
   </div>
 </div>
 
@@ -438,6 +474,34 @@ window.addEventListener('load',function(){doAutoDetect();});
 // PALETTE + WIRING
 // =============================================
 var PALETTE=['#00ffe7','#ff3a5c','#ffc820','#a78bfa','#34d399','#f97316','#38bdf8','#fb923c'];
+var transmission = 'auto'; // 'auto' or 'manual'
+
+function setSl(type, val){
+  if(type === 'cam'){
+    viewMode = val === '3p' ? '3p' : '1p';
+    document.getElementById('sl-cam-3p').classList.toggle('sl-on', val==='3p');
+    document.getElementById('sl-cam-1p').classList.toggle('sl-on', val==='1p');
+    var hint = document.getElementById('ctrl-hint');
+    if(hint) hint.textContent = val==='1p'
+      ? 'W=Gas S=Brake A/D=Steer Space=Drift ESC=Pause | Click game to lock mouse'
+      : 'W=Gas S=Brake A/D=Steer Space=Drift ESC=Pause';
+  }
+  if(type === 'trns'){
+    transmission = val;
+    document.getElementById('sl-trns-auto').classList.toggle('sl-on', val==='auto');
+    document.getElementById('sl-trns-manual').classList.toggle('sl-on', val==='manual');
+    var hint = document.getElementById('ctrl-hint');
+    if(hint && val === 'manual') hint.textContent = 'W=Gas S=Brake A/D=Steer UP/DOWN=Gear Space=Drift ESC=Pause';
+    if(hint && val === 'auto')   hint.textContent = 'W=Gas S=Brake A/D=Steer Space=Drift ESC=Pause';
+    // Show/hide gear UI
+    var gh = document.getElementById('gear-hud');
+    var tup = document.getElementById('tup');
+    var tdn = document.getElementById('tdn');
+    if(gh)  gh.style.opacity  = val==='manual' ? '1' : '0.3';
+    if(tup) tup.style.display = val==='manual' ? '' : 'none';
+    if(tdn) tdn.style.display = val==='manual' ? '' : 'none';
+  }
+}
 var pickedColor=PALETTE[0];
 
 PALETTE.forEach(function(col,i){
@@ -448,8 +512,7 @@ PALETTE.forEach(function(col,i){
   document.getElementById('swatch').appendChild(sw);
 });
 
-document.getElementById('v3p').onclick=function(){viewMode='3p';document.getElementById('v3p').classList.add('on');document.getElementById('v1p').classList.remove('on');};
-document.getElementById('v1p').onclick=function(){viewMode='1p';document.getElementById('v1p').classList.add('on');document.getElementById('v3p').classList.remove('on');};
+// camera controlled by setSl() sliders
 document.getElementById('btn-solo').onclick=function(){launch(false);};
 document.getElementById('iname').addEventListener('keydown',function(e){if(e.key==='Enter')launch(false);});
 document.getElementById('btn-mp').onclick=function(){document.getElementById('menu').classList.add('off');document.getElementById('mpm').classList.remove('off');startMPConn();};
@@ -621,7 +684,7 @@ document.addEventListener('keydown',function(e){
   keys[e.key]=true;
   if(e.key===' ')e.preventDefault();
   if(e.key==='Escape'&&gameOn&&!done){paused=!paused;document.getElementById('paus').classList.toggle('off',!paused);}
-  if(gameOn&&!done&&!paused){if(e.key==='ArrowUp')shiftGear(1);if(e.key==='ArrowDown')shiftGear(-1);}
+  if(gameOn&&!done&&!paused&&transmission==='manual'){if(e.key==='ArrowUp')shiftGear(1);if(e.key==='ArrowDown')shiftGear(-1);}
 });
 document.addEventListener('keyup',function(e){keys[e.key]=false;});
 var mouseX=0;
@@ -698,6 +761,11 @@ function tick(DT){
   carSpd=carSpdMS/277.8;
   var rpmT=RPM_IDLE+Math.min(1,Math.abs(carSpdMS)/Math.max(topMS,1))*(RPM_MAX-RPM_IDLE)*(1+clutch*.4);
   rpm+=(Math.min(RPM_MAX,rpmT)-rpm)*.14;rpm=Math.max(RPM_IDLE,Math.min(RPM_MAX,rpm));
+  // AUTO TRANSMISSION: shift up at 90% RPM, shift down at 35% RPM
+  if(transmission==='auto' && fwdKey && clutch<0.1){
+    if(rpm > RPM_MAX*0.90 && gear < 5) shiftGear(1);
+    else if(rpm < RPM_MAX*0.35 && gear > 0 && carSpdMS > 2) shiftGear(-1);
+  }
   // Mouse delta this frame (consumed each frame)
   var mouseDelta = mouseX; mouseX = 0;
   if(joyAct){
@@ -910,15 +978,17 @@ chatInEl.addEventListener('keyup', function(e){ e.stopPropagation(); });
 
 function sendChatMsg(){
   var txt = chatInEl.value.trim();
-  if(!txt || !isMP || !myId) return;
-  var msg = {
-    n: playerName,
-    c: playerColor,
-    t: txt,
-    ts: Date.now(),
-    id: myId
-  };
+  if(!txt) return;
+  if(!isMP || !myId){
+    addSysMsg('Connect to multiplayer to chat!');
+    return;
+  }
+  var now = Date.now();
+  var msg = { n:playerName, c:playerColor, t:txt, ts:now, id:myId };
   chatInEl.value = '';
+  // Show own message immediately
+  addChatMessage(msg, true);
+  lastChatTs = now; // so we don't show it again from poll
   fetch(FB+'/apexdrift/chat.json', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
@@ -956,7 +1026,8 @@ function escHtml(s){
 
 function startChatPoll(){
   chatPollTmr = setInterval(function(){
-    fetch(FB+'/apexdrift/chat.json?orderBy=%22ts%22&limitToLast=20')
+    // Simple GET - no orderBy needed, filter client-side by timestamp
+    fetch(FB+'/apexdrift/chat.json')
       .then(function(r){ return r.json(); })
       .then(function(data){
         if(!data) return;
@@ -964,11 +1035,11 @@ function startChatPoll(){
           var m = data[key];
           if(!m || !m.ts || m.ts <= lastChatTs) return;
           lastChatTs = m.ts;
-          if(m.id === myId) return; // skip own echoed messages
+          if(m.id === myId) return; // skip own messages (already shown locally)
           addChatMessage(m, false);
         });
       }).catch(function(){});
-  }, 500); // poll chat at 2Hz (fast enough, low bandwidth)
+  }, 400);
 }
 
 function stopChatPoll(){ clearInterval(chatPollTmr); }
@@ -976,12 +1047,15 @@ function stopChatPoll(){ clearInterval(chatPollTmr); }
 // Clean up old chat messages (keep last 5 min only) - called once on join
 function cleanOldChat(){
   var cutoff = Date.now() - 5*60*1000;
-  fetch(FB+'/apexdrift/chat.json?orderBy=%22ts%22&endAt='+cutoff+'&limitToLast=50')
+  fetch(FB+'/apexdrift/chat.json')
     .then(function(r){ return r.json(); })
     .then(function(data){
       if(!data) return;
       Object.keys(data).forEach(function(key){
-        fetch(FB+'/apexdrift/chat/'+key+'.json',{method:'DELETE'}).catch(function(){});
+        var m = data[key];
+        if(m && m.ts && m.ts < cutoff){
+          fetch(FB+'/apexdrift/chat/'+key+'.json',{method:'DELETE'}).catch(function(){});
+        }
       });
     }).catch(function(){});
 }
