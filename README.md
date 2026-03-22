@@ -130,9 +130,19 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
 
 /* TOUCH */
 #tui{position:fixed;inset:0;z-index:60;pointer-events:none;display:none}
-.jb{position:absolute;width:clamp(108px,22vw,148px);height:clamp(108px,22vw,148px);border-radius:50%;background:rgba(0,255,231,.07);border:2px solid rgba(0,255,231,.2);pointer-events:all;touch-action:none}
-#jl{bottom:clamp(88px,17vh,155px);left:clamp(14px,3.5vw,30px)}
-.jk{position:absolute;width:44px;height:44px;border-radius:50%;background:rgba(0,255,231,.28);border:2px solid var(--neon);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none}
+.sw-wheel-wrap{
+  position:absolute;
+  width:clamp(120px,24vw,165px);
+  height:clamp(120px,24vw,165px);
+  bottom:clamp(88px,17vh,155px);
+  left:clamp(14px,3.5vw,30px);
+  pointer-events:all;
+  touch-action:none;
+  filter:drop-shadow(0 0 14px rgba(0,255,231,.22));
+}
+#jl{ transform-origin:center center; }
+/* keep .jk hidden - no knob on wheel */
+.jk{display:none}
 #tb{position:absolute;bottom:clamp(88px,17vh,155px);right:clamp(14px,3.5vw,30px);display:flex;flex-direction:column;gap:7px;align-items:flex-end;pointer-events:all}
 .tb{background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.2);color:#fff;font-family:'Bebas Neue',sans-serif;letter-spacing:3px;border-radius:8px;cursor:pointer;pointer-events:all;user-select:none;touch-action:manipulation}
 .tb:active{background:rgba(0,255,231,.22);border-color:var(--neon)}
@@ -164,6 +174,16 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
   #tgas{font-size:22px;padding:14px 32px}#tbrk{font-size:22px;padding:12px 28px}
 }
 
+
+
+/* KICK / TIMEOUT SCREEN */
+#kick-screen{ background:rgba(0,0,0,.92);backdrop-filter:blur(14px);flex-direction:column }
+.kick-box{ text-align:center;padding:40px;max-width:500px }
+#kick-title{ font-family:'Bebas Neue',sans-serif;font-size:clamp(72px,14vw,110px);letter-spacing:8px;color:var(--hot);text-shadow:0 0 60px rgba(255,58,92,.7);line-height:1;margin-bottom:16px }
+#kick-reason{ font-size:clamp(13px,2.5vw,17px);letter-spacing:2px;color:rgba(255,255,255,.6);margin-bottom:24px;line-height:1.8;white-space:pre-line }
+#kick-timer{ font-family:'Bebas Neue',sans-serif;font-size:clamp(16px,3vw,22px);letter-spacing:4px;color:rgba(255,255,255,.35);margin-bottom:12px }
+#kick-progress-wrap{ width:min(300px,80vw);height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;margin:0 auto }
+#kick-progress{ height:100%;width:100%;background:var(--hot);border-radius:2px;transition:width 1s linear }
 
 /* SLIDERS */
 .sliders{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
@@ -362,7 +382,27 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
 
 <!-- TOUCH UI -->
 <div id="tui">
-  <div class="jb" id="jl"><div class="jk" id="jk"></div></div>
+  <!-- Steering wheel touch control -->
+  <div id="jl" class="sw-wheel-wrap">
+    <svg id="sw-svg" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;transition:transform .05s">
+      <!-- Outer rim -->
+      <circle cx="80" cy="80" r="72" fill="none" stroke="rgba(0,255,231,.25)" stroke-width="14"/>
+      <circle cx="80" cy="80" r="72" fill="none" stroke="rgba(0,255,231,.5)" stroke-width="6" stroke-dasharray="4 3"/>
+      <!-- Hub -->
+      <circle cx="80" cy="80" r="22" fill="#0d1120" stroke="#00ffe7" stroke-width="2" opacity=".9"/>
+      <!-- Spokes -->
+      <line x1="80" y1="58" x2="80" y2="10" stroke="#1e2340" stroke-width="10" stroke-linecap="round"/>
+      <line x1="80" y1="58" x2="80" y2="10" stroke="#2d3260" stroke-width="4" stroke-linecap="round"/>
+      <line x1="80" y1="102" x2="42" y2="148" stroke="#1e2340" stroke-width="10" stroke-linecap="round"/>
+      <line x1="80" y1="102" x2="42" y2="148" stroke="#2d3260" stroke-width="4" stroke-linecap="round"/>
+      <line x1="80" y1="102" x2="118" y2="148" stroke="#1e2340" stroke-width="10" stroke-linecap="round"/>
+      <line x1="80" y1="102" x2="118" y2="148" stroke="#2d3260" stroke-width="4" stroke-linecap="round"/>
+      <!-- Center dot -->
+      <circle cx="80" cy="80" r="8" fill="#00ffe7" opacity=".7"/>
+      <!-- Top marker -->
+      <rect x="77" y="7" width="6" height="10" rx="3" fill="#00ffe7" opacity=".8"/>
+    </svg>
+  </div>
   <div id="tb">
     <button class="tb" id="tgas">GAS</button>
     <button class="tb" id="tbrk">BRAKE</button>
@@ -386,10 +426,20 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
   </div>
 </div>
 
-<!-- FINISH -->
+<!-- FINISH (single player only) -->
 <div class="screen" id="fin">
   <h1>FINISH!</h1><p id="finsub"></p>
   <button id="btn-again">RACE AGAIN</button>
+</div>
+
+<!-- KICK / TIMEOUT OVERLAY -->
+<div class="screen off" id="kick-screen">
+  <div class="kick-box">
+    <div id="kick-title">KICKED</div>
+    <div id="kick-reason"></div>
+    <div id="kick-timer">Returning in 30s...</div>
+    <div id="kick-progress-wrap"><div id="kick-progress"></div></div>
+  </div>
 </div>
 
 <!-- THREE.JS from reliable CDN -->
@@ -405,21 +455,111 @@ if(typeof THREE === 'undefined'){
 // FIREBASE REST
 // =============================================
 var FB='https://apex-drifter-official-default-rtdb.firebaseio.com';
-var isMP=false,myId='',lastSync=0,pollTmr=null;
+var isMP=false,myId='',lastSync=0;
 var remotes={};
 
 function fbWrite(d){
-  fetch(FB+'/apexdrift/players/'+myId+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).catch(function(){});
+  fetch(FB+'/apexdrift/players/'+myId+'.json',{
+    method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(d),keepalive:true
+  }).catch(function(){});
 }
 function fbDel(){
-  fetch(FB+'/apexdrift/players/'+myId+'.json',{method:'DELETE'}).catch(function(){});
+  try{navigator.sendBeacon(FB+'/apexdrift/players/'+myId+'.json','null');}catch(e){}
+  fetch(FB+'/apexdrift/players/'+myId+'.json',{method:'DELETE',keepalive:true}).catch(function(){});
 }
-function startPoll(){
-  pollTmr=setInterval(function(){
-    fetch(FB+'/apexdrift/players.json').then(function(r){return r.json();}).then(function(d){if(d)handleRemotes(d);}).catch(function(){});
-  },30);
+
+// SSE - Firebase push streams (INSTANT, no polling)
+var playerSSE=null,chatSSE=null,adminSSE=null;
+
+function startSSE(){
+  stopSSE();
+
+  // Players - instant position updates
+  playerSSE=new EventSource(FB+'/apexdrift/players.json');
+  playerSSE.addEventListener('put',function(e){
+    try{
+      var p=JSON.parse(e.data);
+      if(p.data) handleRemotes(p.data);
+    }catch(x){}
+  });
+  playerSSE.addEventListener('patch',function(e){
+    try{
+      var p=JSON.parse(e.data);
+      if(!p.data) return;
+      // Build merged data from existing remotes + patch
+      var merged={};
+      Object.keys(remotes).forEach(function(id){merged[id]=remotes[id]._raw||{};});
+      Object.keys(p.data).forEach(function(id){
+        if(p.data[id]===null) delete merged[id];
+        else merged[id]=p.data[id];
+      });
+      handleRemotes(merged);
+    }catch(x){}
+  });
+  playerSSE.onerror=function(){ setTimeout(function(){if(isMP&&!playerSSE)startSSE();},1500); };
+
+  // Chat - instant messages
+  chatSSE=new EventSource(FB+'/apexdrift/chat.json');
+  chatSSE.addEventListener('put',function(e){
+    try{
+      var p=JSON.parse(e.data);
+      if(p.path==='/'&&p.data){
+        // Initial snapshot - just update lastChatTs, don't show old msgs
+        var vals=Object.values(p.data);
+        var maxTs=vals.reduce(function(m,x){return(x&&x.ts>m)?x.ts:m;},0);
+        if(maxTs) lastChatTs=maxTs;
+        return;
+      }
+      // Single new message pushed
+      var m=p.data;
+      if(!m||!m.ts||m.ts<=lastChatTs) return;
+      lastChatTs=m.ts;
+      if(m.id===myId) return;
+      addChatMessage(m,false);
+    }catch(x){}
+  });
+  chatSSE.addEventListener('patch',function(e){
+    try{
+      var p=JSON.parse(e.data);
+      if(!p.data) return;
+      Object.keys(p.data).forEach(function(k){
+        var m=p.data[k];
+        if(!m||!m.ts||m.ts<=lastChatTs) return;
+        lastChatTs=m.ts;
+        if(m.id===myId) return;
+        addChatMessage(m,false);
+      });
+    }catch(x){}
+  });
+
+  // Admin - ban/speed commands
+  adminSSE=new EventSource(FB+'/apexdrift/admin.json');
+  adminSSE.addEventListener('put',function(e){
+    try{
+      var p=JSON.parse(e.data);
+      if(p.path==='/'&&p.data){
+        // Mark all existing as seen
+        Object.keys(p.data).forEach(function(k){
+          var cmd=p.data[k];if(cmd&&cmd.ts)lastAdminTs=Math.max(lastAdminTs,cmd.ts);
+        });
+        return;
+      }
+      var cmd=p.data;
+      if(!cmd||!cmd.ts||cmd.ts<=lastAdminTs) return;
+      lastAdminTs=cmd.ts;
+      if(cmd.type==='ban'&&cmd.target===playerName) doBanKick(cmd.reason,cmd.by);
+      if(cmd.type==='speed'&&cmd.by!==playerName){carSpdMS=cmd.kmh/3.6;carSpd=carSpdMS/277.8;addSysMsg('[ADMIN] Speed: '+cmd.kmh+' km/h by '+cmd.by);}
+    }catch(x){}
+  });
 }
-function stopPoll(){clearInterval(pollTmr);}
+
+function stopSSE(){
+  if(playerSSE){playerSSE.close();playerSSE=null;}
+  if(chatSSE){chatSSE.close();chatSSE=null;}
+  if(adminSSE){adminSSE.close();adminSSE=null;}
+}
+function stopPoll(){ stopSSE(); }
 
 // =============================================
 // DEVICE
@@ -696,9 +836,41 @@ window.addEventListener('deviceorientation',function(e){if(e.gamma!==null)tiltX=
 // Touch joystick
 var joyAct=false,joyCX=0;
 var jEl=document.getElementById('jl'),jkEl=document.getElementById('jk');
-jEl.addEventListener('touchstart',function(e){e.preventDefault();joyAct=true;var r=jEl.getBoundingClientRect();jEl._cx=r.left+r.width/2;jEl._cy=r.top+r.height/2;},{passive:false});
-jEl.addEventListener('touchmove',function(e){e.preventDefault();if(!joyAct)return;var t=e.touches[0],dx=t.clientX-jEl._cx,dy=t.clientY-jEl._cy,JR=jEl.offsetWidth/2*.85,dist=Math.min(Math.sqrt(dx*dx+dy*dy),JR),ang=Math.atan2(dy,dx);joyCX=Math.cos(ang)*dist/JR;jkEl.style.transform='translate(calc(-50% + '+Math.cos(ang)*dist+'px),calc(-50% + '+Math.sin(ang)*dist+'px))';},{passive:false});
-jEl.addEventListener('touchend',function(e){e.preventDefault();joyAct=false;joyCX=0;jkEl.style.transform='translate(-50%,-50%)';},{passive:false});
+var swSvg = document.getElementById('sw-svg');
+var wheelRot = 0; // current visual rotation degrees
+var wheelTarget = 0;
+
+jEl.addEventListener('touchstart',function(e){
+  e.preventDefault();
+  joyAct=true;
+  var r=jEl.getBoundingClientRect();
+  jEl._cx=r.left+r.width/2;
+  jEl._cy=r.top+r.height/2;
+},{passive:false});
+
+jEl.addEventListener('touchmove',function(e){
+  e.preventDefault();
+  if(!joyAct)return;
+  var t=e.touches[0];
+  var dx=t.clientX-jEl._cx;
+  var dy=t.clientY-jEl._cy;
+  var JR=jEl.offsetWidth/2;
+  var dist=Math.min(Math.sqrt(dx*dx+dy*dy),JR);
+  var ang=Math.atan2(dy,dx);
+  // Only use X component for steering (-1 to 1)
+  joyCX = Math.max(-1,Math.min(1, dx/JR));
+  // Rotate wheel SVG visually (max 120 degrees lock-to-lock)
+  wheelTarget = joyCX * 120;
+  if(swSvg) swSvg.style.transform = 'rotate('+wheelTarget+'deg)';
+},{passive:false});
+
+jEl.addEventListener('touchend',function(e){
+  e.preventDefault();
+  joyAct=false;
+  joyCX=0;
+  wheelTarget=0;
+  if(swSvg) swSvg.style.transform = 'rotate(0deg)';
+},{passive:false});
 function tb(id,k){var el=document.getElementById(id);if(!el)return;el.addEventListener('touchstart',function(e){e.preventDefault();keys[k]=true;},{passive:false});el.addEventListener('touchend',function(e){e.preventDefault();keys[k]=false;},{passive:false});}
 tb('tgas','w');tb('tbrk','s');tb('tdft',' ');
 document.getElementById('tup').addEventListener('touchstart',function(e){e.preventDefault();if(gameOn&&!done)shiftGear(1);},{passive:false});
@@ -812,6 +984,11 @@ function tick(DT){
   document.getElementById('spd').textContent=kmh;
   var rb=document.getElementById('rpmb');rb.style.width=Math.min(100,rpm/RPM_MAX*100)+'%';
   rb.style.background=rpm>RPM_MAX*.88?'linear-gradient(90deg,var(--hot),#f60)':'linear-gradient(90deg,var(--neon),var(--gold))';
+  // Animate steering wheel on desktop too (if visible)
+  if(swSvg && !joyAct){
+    var wDeg = steer * 120;
+    swSvg.style.transform = 'rotate('+wDeg+'deg)';
+  }
   fpsF++;var fNow=performance.now();
   if(fNow-fpsLast>600){document.getElementById('fps').textContent=Math.round(fpsF*1000/(fNow-fpsLast))+' FPS';fpsF=0;fpsLast=fNow;}
   checkCPs();checkWW();
@@ -857,10 +1034,17 @@ function checkWW(){
 }
 function finish(){
   done=true;
-  document.getElementById('finsub').textContent='Time: '+((Date.now()-startTime)/1000).toFixed(2)+'s';
-  document.getElementById('fin').classList.add('show');
   if(document.pointerLockElement)document.exitPointerLock();
-  if(isMP){fbDel();stopPoll();stopChatPoll();}
+  if(isMP){
+    // No finish screen in MP - just show a chat message and keep playing
+    addSysMsg('You completed '+TOTAL_LAPS+' laps! Time: '+((Date.now()-startTime)/1000).toFixed(2)+'s');
+    // Reset for another run
+    lap=1; lastCP=-1; cpTotal=0; startTime=Date.now(); done=false;
+    addSysMsg('Starting another lap! Race on!');
+  } else {
+    document.getElementById('finsub').textContent='Time: '+((Date.now()-startTime)/1000).toFixed(2)+'s';
+    document.getElementById('fin').classList.add('show');
+  }
 }
 
 // =============================================
@@ -885,11 +1069,10 @@ function setupMP(){
   window.addEventListener('beforeunload',function(){fbDel();});
   window.addEventListener('pagehide',function(){fbDel();});
   document.addEventListener('visibilitychange',function(){
-    if(document.visibilityState==='hidden'){fbDel();stopPoll();stopChatPoll();}
-    else if(isMP){startPoll();startChatPoll();}
+    if(document.visibilityState==='hidden'){fbDel();stopPoll();}
+    else if(isMP){ startSSE(); }
   });
-  startPoll();
-  startChatPoll();
+  startSSE(); // single SSE connection replaces all polling
   startSessionTimer();
   cleanOldChat();
   // Show chat UI
@@ -905,12 +1088,12 @@ function handleRemotes(data){
     if(!remotes[id]){
       var mesh=buildCar(p.color||'#ff3a5c');mesh.position.set(p.x,.4,p.z);mesh.rotation.y=p.angle||0;
       var lbl=makeLabel(p.name||'Driver',p.color||'#ff3a5c');lbl.position.set(0,2.4,0);mesh.add(lbl);
-      scene.add(mesh);remotes[id]={mesh:mesh,color:p.color||'#ff3a5c',name:p.name||'Driver',lap:1,cp:0,tx:p.x,tz:p.z,ta:p.angle||0,vx:0,vz:0,lastUp:Date.now(),srvT:p.t||Date.now()};
+      scene.add(mesh);remotes[id]={mesh:mesh,color:p.color||'#ff3a5c',name:p.name||'Driver',lap:1,cp:0,tx:p.x,tz:p.z,ta:p.angle||0,vx:0,vz:0,lastUp:Date.now(),srvT:p.t||Date.now(),_rawData:p};
       addSysMsg((p.name||'Driver')+' joined the race!');
     }else{
       var r=remotes[id];
       var dt=Math.max(.01,(p.t&&r.srvT)?(p.t-r.srvT)/1000:(Date.now()-r.lastUp)/1000);
-      r.vx=(p.x-r.tx)/dt;r.vz=(p.z-r.tz)/dt;r.tx=p.x;r.tz=p.z;r.ta=p.angle||0;r.lap=p.lap||1;r.cp=p.cp||0;r.lastUp=Date.now();r.srvT=p.t||Date.now();
+      r.vx=(p.x-r.tx)/dt;r.vz=(p.z-r.tz)/dt;r.tx=p.x;r.tz=p.z;r.ta=p.angle||0;r.lap=p.lap||1;r.cp=p.cp||0;r.lastUp=Date.now();r.srvT=p.t||Date.now();r._rawData=p;
     }
     lb.push({id:id,name:p.name||'Driver',color:p.color||'#888',lap:p.lap||1,cp:p.cp||0});
   });
@@ -932,7 +1115,7 @@ function updateRemotes(){
   });
 }
 function syncFB(){
-  var now=Date.now();if(now-lastSync<30)return;lastSync=now;
+  var now=Date.now();if(now-lastSync<16)return;lastSync=now; // ~60fps writes
   fbWrite({x:+carPos.x.toFixed(2),z:+carPos.z.toFixed(2),y:.4,angle:+carAngle.toFixed(3),lap:lap,cp:cpTotal,name:playerName,color:playerColor,gear:gear+1,kmh:Math.round(Math.abs(carSpdMS)*3.6),t:now,joinedAt:joinedAt});
 }
 function renderLB(players){
@@ -976,6 +1159,9 @@ chatInEl.addEventListener('keydown', function(e){
 });
 chatInEl.addEventListener('keyup', function(e){ e.stopPropagation(); });
 
+var ADMINS = ['TDVADMIN','PixlectADMIN'];
+function isAdmin(){ return ADMINS.indexOf(playerName) !== -1; }
+
 function sendChatMsg(){
   var txt = chatInEl.value.trim();
   if(!txt) return;
@@ -983,18 +1169,94 @@ function sendChatMsg(){
     addSysMsg('Connect to multiplayer to chat!');
     return;
   }
+
+  // Admin commands
+  if(txt.startsWith('/') && isAdmin()){
+    handleAdminCmd(txt);
+    chatInEl.value = '';
+    return;
+  }
+
   var now = Date.now();
   var msg = { n:playerName, c:playerColor, t:txt, ts:now, id:myId };
   chatInEl.value = '';
-  // Show own message immediately
   addChatMessage(msg, true);
-  lastChatTs = now; // so we don't show it again from poll
+  lastChatTs = now;
   fetch(FB+'/apexdrift/chat.json', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify(msg)
   }).catch(function(){});
 }
+
+function handleAdminCmd(txt){
+  var parts = txt.split(' ');
+  var cmd = parts[0].toLowerCase();
+  var target = parts[1] || '';
+  var reason = parts.slice(2).join(' ') || 'No reason given';
+
+  if(cmd === '/ban'){
+    if(!target){ addSysMsg('Usage: /ban [username] [reason]'); return; }
+    addSysMsg('[ADMIN] Banning: ' + target + ' - Reason: ' + reason);
+    // Write ban to Firebase
+    var banMsg = {
+      type:'ban',
+      target: target,
+      reason: reason,
+      by: playerName,
+      ts: Date.now()
+    };
+    fetch(FB+'/apexdrift/admin.json', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(banMsg)
+    }).catch(function(){});
+  }
+  else if(cmd === '/speed'){
+    var kmh = parseFloat(target);
+    if(isNaN(kmh)){ addSysMsg('Usage: /speed [km/h]'); return; }
+    // Set speed for all players via admin node
+    var speedMsg = { type:'speed', kmh:kmh, by:playerName, ts:Date.now() };
+    fetch(FB+'/apexdrift/admin.json', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(speedMsg)
+    }).catch(function(){});
+    addSysMsg('[ADMIN] Set all players speed to ' + kmh + ' km/h');
+  }
+  else {
+    addSysMsg('Unknown command. Available: /ban [user] [reason], /speed [km/h]');
+  }
+}
+
+// Admin handled by SSE stream above
+var lastAdminTs = Date.now();
+
+function showKickScreen(title, reason){
+  document.getElementById('kick-screen').classList.remove('off');
+  document.getElementById('kick-title').textContent = title;
+  document.getElementById('kick-reason').textContent = reason;
+  var countdown = 30;
+  document.getElementById('kick-timer').textContent = 'Returning in ' + countdown + 's...';
+  var prog = document.getElementById('kick-progress');
+  prog.style.width = '100%';
+  var iv = setInterval(function(){
+    countdown--;
+    document.getElementById('kick-timer').textContent = 'Returning in ' + countdown + 's...';
+    prog.style.width = ((countdown/30)*100) + '%';
+    if(countdown <= 0){ clearInterval(iv); location.reload(); }
+  }, 1000);
+  // Clean up Firebase presence
+  fbDel(); stopPoll();
+  if(sessionTimer) clearInterval(sessionTimer);
+}
+
+function doBanKick(reason, by){
+  gameOn = false;
+  gameOn = false;
+  showKickScreen('BANNED', 'Reason: ' + reason + '\n\nBanned by: ' + by + '\n\nChange your name to rejoin.');
+}
+
 
 function addChatMessage(msg, isMine){
   var div = document.createElement('div');
@@ -1024,23 +1286,7 @@ function escHtml(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function startChatPoll(){
-  chatPollTmr = setInterval(function(){
-    // Simple GET - no orderBy needed, filter client-side by timestamp
-    fetch(FB+'/apexdrift/chat.json')
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        if(!data) return;
-        Object.keys(data).forEach(function(key){
-          var m = data[key];
-          if(!m || !m.ts || m.ts <= lastChatTs) return;
-          lastChatTs = m.ts;
-          if(m.id === myId) return; // skip own messages (already shown locally)
-          addChatMessage(m, false);
-        });
-      }).catch(function(){});
-  }, 400);
-}
+// chat handled by SSE
 
 function stopChatPoll(){ clearInterval(chatPollTmr); }
 
@@ -1085,17 +1331,8 @@ function startSessionTimer(){
 }
 
 function kickPlayer(){
-  if(isMP){
-    fbDel();
-    stopPoll();
-    stopChatPoll();
-    addSysMsg('Session ended (5 min limit). Refresh to rejoin.');
-  }
-  // Stop game
-  done = true;
-  gameOn = false;
-  document.getElementById('fin').classList.add('show');
-  document.getElementById('finsub').textContent = 'Session limit reached (5 min). Refresh to play again!';
+  gameOn = false; done = true;
+  showKickScreen('TIMED OUT', 'Your 5-minute session has ended.\n\nRefresh to rejoin the race!');
 }
 
 // Also kick players who have been in Firebase for >5 min
