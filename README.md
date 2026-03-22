@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -132,15 +131,17 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
 #tui{position:fixed;inset:0;z-index:60;pointer-events:none;display:none}
 .sw-wheel-wrap{
   position:absolute;
-  width:clamp(140px,28vw,200px);
-  height:clamp(140px,28vw,200px);
-  bottom:clamp(80px,15vh,140px);
-  left:clamp(10px,2.5vw,26px);
+  width:clamp(148px,30vw,210px);
+  height:clamp(148px,30vw,210px);
+  bottom:clamp(88px,16vh,148px);
+  left:clamp(10px,2.5vw,24px);
   pointer-events:all;
   touch-action:none;
-  filter:drop-shadow(0 0 22px rgba(0,255,231,.3)) drop-shadow(0 0 8px rgba(0,0,0,.9));
+  filter:drop-shadow(0 0 24px rgba(0,255,231,.32)) drop-shadow(0 0 10px rgba(0,0,0,.95));
+  cursor:grab;
 }
-#jl{transform-origin:center center}
+#jl{transform-origin:center center;will-change:transform}
+#jl:active{cursor:grabbing}
 .jk{display:none}
 #tb{position:absolute;bottom:clamp(88px,17vh,155px);right:clamp(14px,3.5vw,30px);display:flex;flex-direction:column;gap:7px;align-items:flex-end;pointer-events:all}
 .tb{background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.2);color:#fff;font-family:'Bebas Neue',sans-serif;letter-spacing:3px;border-radius:8px;cursor:pointer;pointer-events:all;user-select:none;touch-action:manipulation}
@@ -170,7 +171,7 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
   .btn-go{font-size:22px;padding:15px}.btn-mp{font-size:16px;padding:10px}
   #spd{font-size:62px}#lap-val{font-size:44px}#gear-val{font-size:52px}
   #mm{width:132px;height:132px;bottom:190px}
-  .sw-wheel-wrap{width:200px;height:200px;bottom:100px;left:20px}
+  .sw-wheel-wrap{width:clamp(180px,28vw,240px);height:clamp(180px,28vw,240px);bottom:clamp(100px,14vh,160px);left:clamp(18px,2.5vw,36px)}
   #tgas{font-size:22px;padding:14px 32px}#tbrk{font-size:22px;padding:12px 28px}
 }
 
@@ -477,6 +478,7 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
     <div id="kick-reason"></div>
     <div id="kick-timer">Returning in 30s...</div>
     <div id="kick-progress-wrap"><div id="kick-progress"></div></div>
+    <button id="kick-now-btn" onclick="location.reload()" style="margin-top:22px;padding:12px 44px;background:transparent;border:2px solid #ff3a5c;color:#ff3a5c;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:5px;cursor:pointer;border-radius:3px;transition:all .15s">RETURN NOW</button>
   </div>
 </div>
 
@@ -513,81 +515,140 @@ var playerSSE=null,chatSSE=null,adminSSE=null;
 function startSSE(){
   stopSSE();
 
-  // Players - instant position updates
-  playerSSE=new EventSource(FB+'/apexdrift/players.json');
-  playerSSE.addEventListener('put',function(e){
+  // -- PLAYERS: Firebase sends put/{path} for every write --
+  playerSSE = new EventSource(FB+'/apexdrift/players.json');
+
+  playerSSE.addEventListener('put', function(e){
     try{
-      var p=JSON.parse(e.data);
-      if(p.data) handleRemotes(p.data);
+      var ev = JSON.parse(e.data);
+      var path = ev.path, data = ev.data;
+      if(path === '/'){
+        // Initial full snapshot
+        if(data) handleRemotes(data);
+        else {
+          Object.keys(remotes).forEach(function(id){
+            if(scene) scene.remove(remotes[id].mesh);
+            delete remotes[id];
+          });
+        }
+      } else {
+        // Single player updated: path = "/playerid"
+        var id = path.replace('/','');
+        if(data === null){
+          // Player left
+          if(remotes[id]){
+            addSysMsg((remotes[id].name||'Driver')+' left the race.');
+            if(scene) scene.remove(remotes[id].mesh);
+            delete remotes[id];
+          }
+        } else {
+          // Player joined or updated - build a single-item object and call handleRemotes
+          var obj = {}; obj[id] = data;
+          // Merge with existing so handleRemotes sees everyone
+          Object.keys(remotes).forEach(function(rid){
+            if(!obj[rid] && remotes[rid]._rawData) obj[rid] = remotes[rid]._rawData;
+          });
+          handleRemotes(obj);
+        }
+      }
     }catch(x){}
   });
-  playerSSE.addEventListener('patch',function(e){
+
+  playerSSE.addEventListener('patch', function(e){
     try{
-      var p=JSON.parse(e.data);
-      if(!p.data) return;
-      // Build merged data from existing remotes + patch
-      var merged={};
-      Object.keys(remotes).forEach(function(id){merged[id]=remotes[id]._raw||{};});
-      Object.keys(p.data).forEach(function(id){
-        if(p.data[id]===null) delete merged[id];
-        else merged[id]=p.data[id];
+      var ev = JSON.parse(e.data);
+      if(!ev.data) return;
+      // Patch contains changed fields - build merged object
+      var merged = {};
+      Object.keys(remotes).forEach(function(id){
+        if(remotes[id]._rawData) merged[id] = remotes[id]._rawData;
+      });
+      Object.keys(ev.data).forEach(function(id){
+        if(ev.data[id] === null) delete merged[id];
+        else merged[id] = ev.data[id];
       });
       handleRemotes(merged);
     }catch(x){}
   });
-  playerSSE.onerror=function(){ setTimeout(function(){if(isMP&&!playerSSE)startSSE();},1500); };
 
-  // Chat - instant messages
-  chatSSE=new EventSource(FB+'/apexdrift/chat.json');
-  chatSSE.addEventListener('put',function(e){
+  playerSSE.onerror = function(){
+    setTimeout(function(){ if(isMP) startSSE(); }, 2000);
+  };
+
+  // -- CHAT --
+  chatSSE = new EventSource(FB+'/apexdrift/chat.json');
+
+  chatSSE.addEventListener('put', function(e){
     try{
-      var p=JSON.parse(e.data);
-      if(p.path==='/'&&p.data){
-        // Initial snapshot - just update lastChatTs, don't show old msgs
-        var vals=Object.values(p.data);
-        var maxTs=vals.reduce(function(m,x){return(x&&x.ts>m)?x.ts:m;},0);
-        if(maxTs) lastChatTs=maxTs;
+      var ev = JSON.parse(e.data);
+      if(ev.path === '/' && ev.data){
+        // Initial snapshot - mark all as seen
+        var vals = Object.values(ev.data);
+        var maxTs = vals.reduce(function(m,x){ return (x&&x.ts>m)?x.ts:m; }, 0);
+        if(maxTs) lastChatTs = maxTs;
         return;
       }
-      // Single new message pushed
-      var m=p.data;
-      if(!m||!m.ts||m.ts<=lastChatTs) return;
-      lastChatTs=m.ts;
-      if(m.id===myId) return;
-      addChatMessage(m,false);
+      // Single new message
+      var m = ev.data;
+      if(!m || !m.ts || m.ts <= lastChatTs) return;
+      lastChatTs = m.ts;
+      if(m.id === myId) return;
+      addChatMessage(m, false);
     }catch(x){}
   });
-  chatSSE.addEventListener('patch',function(e){
+
+  chatSSE.addEventListener('patch', function(e){
     try{
-      var p=JSON.parse(e.data);
-      if(!p.data) return;
-      Object.keys(p.data).forEach(function(k){
-        var m=p.data[k];
-        if(!m||!m.ts||m.ts<=lastChatTs) return;
-        lastChatTs=m.ts;
-        if(m.id===myId) return;
-        addChatMessage(m,false);
+      var ev = JSON.parse(e.data);
+      if(!ev.data) return;
+      Object.keys(ev.data).forEach(function(k){
+        var m = ev.data[k];
+        if(!m || !m.ts || m.ts <= lastChatTs) return;
+        lastChatTs = m.ts;
+        if(m.id === myId) return;
+        addChatMessage(m, false);
       });
     }catch(x){}
   });
 
-  // mod channel
-  adminSSE=new EventSource(FB+'/apexdrift/admin.json');
-  adminSSE.addEventListener('put',function(e){
+  chatSSE.onerror = function(){
+    setTimeout(function(){ if(isMP && !chatSSE) startSSE(); }, 2000);
+  };
+
+  // -- ADMIN / MOD --
+  adminSSE = new EventSource(FB+'/apexdrift/admin.json');
+
+  adminSSE.addEventListener('put', function(e){
     try{
-      var p=JSON.parse(e.data);
-      if(p.path==='/'&&p.data){
-        // Mark all existing as seen
-        Object.keys(p.data).forEach(function(k){
-          var cmd=p.data[k];if(cmd&&cmd.ts)lastAdminTs=Math.max(lastAdminTs,cmd.ts);
+      var ev = JSON.parse(e.data);
+      if(ev.path === '/' && ev.data){
+        // Mark all existing commands as seen
+        Object.keys(ev.data).forEach(function(k){
+          var cmd = ev.data[k];
+          if(cmd && cmd.ts) lastAdminTs = Math.max(lastAdminTs, cmd.ts);
         });
         return;
       }
-      var cmd=p.data;
-      if(!cmd||!cmd.ts||cmd.ts<=lastAdminTs) return;
-      lastAdminTs=cmd.ts;
-      if(cmd.type==='ban'&&cmd.target===playerName) doBanKick(cmd.reason,cmd.by);
-      if(cmd.type==='speed'&&cmd.by!==playerName){carSpdMS=cmd.kmh/3.6;carSpd=carSpdMS/277.8;}
+      // New command arrived
+      var cmd = ev.data;
+      if(!cmd || !cmd.ts || cmd.ts <= lastAdminTs) return;
+      lastAdminTs = cmd.ts;
+      if(cmd.type === 'ban' && cmd.target === playerName) doBanKick(cmd.reason, cmd.by);
+      if(cmd.type === 'speed' && cmd.by !== playerName){ carSpdMS = cmd.kmh/3.6; carSpd = carSpdMS/277.8; }
+    }catch(x){}
+  });
+
+  adminSSE.addEventListener('patch', function(e){
+    try{
+      var ev = JSON.parse(e.data);
+      if(!ev.data) return;
+      Object.keys(ev.data).forEach(function(k){
+        var cmd = ev.data[k];
+        if(!cmd || !cmd.ts || cmd.ts <= lastAdminTs) return;
+        lastAdminTs = cmd.ts;
+        if(cmd.type === 'ban' && cmd.target === playerName) doBanKick(cmd.reason, cmd.by);
+        if(cmd.type === 'speed' && cmd.by !== playerName){ carSpdMS = cmd.kmh/3.6; carSpd = carSpdMS/277.8; }
+      });
     }catch(x){}
   });
 }
@@ -845,10 +906,10 @@ function tickSmoke(){
 // =============================================
 // ENGINE - 6 GEARS, G6=1000KM/H
 // =============================================
-var GTOP_PETROL=[22,60,120,180,240,277.8];
-var GACC_PETROL=[45,38,30,22,16,11];
-var GTOP_ELECTRIC=[50,120,200,277.8,277.8,277.8]; // electric torque = instant, same top
-var GACC_ELECTRIC=[90,70,50,35,22,14]; // electric accel = WAY faster off the line
+var GTOP_PETROL=[35,90,160,220,260,277.8];
+var GACC_PETROL=[65,55,42,30,20,14]; // boosted
+var GTOP_ELECTRIC=[80,160,240,277.8,277.8,277.8]; // electric rushes to top speed
+var GACC_ELECTRIC=[130,100,72,50,32,20]; // electric = instant torque beast
 var GTOP=GTOP_PETROL;
 var GACC=GACC_PETROL;
 var RPM_IDLE=900,RPM_MAX=7200,SHIFT_MS=260;
@@ -906,40 +967,44 @@ function updateWheelVisual(){
 
 var joyStartAngle=0, joyStartRot=0;
 
-function getTouchAngle(e){
-  var r=jEl.getBoundingClientRect();
-  var cx=r.left+r.width/2,cy=r.top+r.height/2;
-  var t=e.touches[0];
-  return Math.atan2(t.clientY-cy,t.clientX-cx)*180/Math.PI;
+function getEventAngle(touch){
+  var r = jEl.getBoundingClientRect();
+  var cx = r.left + r.width*0.5;
+  var cy = r.top  + r.height*0.5;
+  return Math.atan2(touch.clientY - cy, touch.clientX - cx) * (180/Math.PI);
 }
 
 jEl.addEventListener('touchstart',function(e){
   e.preventDefault();
-  joyAct=true; wheelVel=0;
-  joyStartAngle=getTouchAngle(e);
-  joyStartRot=wheelRot;
-  var r=jEl.getBoundingClientRect();
-  jEl._cx=r.left+r.width/2; jEl._cy=r.top+r.height/2;
+  joyAct = true;
+  wheelVel = 0;
+  joyStartAngle = getEventAngle(e.touches[0]);
+  joyStartRot = wheelRot;
 },{passive:false});
 
 jEl.addEventListener('touchmove',function(e){
   e.preventDefault();
-  if(!joyAct)return;
-  var delta=getTouchAngle(e)-joyStartAngle;
-  while(delta>180)delta-=360;
-  while(delta<-180)delta+=360;
-  var tgt=Math.max(-135,Math.min(135,joyStartRot+delta));
-  joyCX=tgt/135;
+  if(!joyAct) return;
+  var curAngle = getEventAngle(e.touches[0]);
+  var delta = curAngle - joyStartAngle;
+  // Normalise to -180..180 so crossing the 180/-180 line doesn't snap
+  while(delta >  180) delta -= 360;
+  while(delta < -180) delta += 360;
+  // Clamp to 135 deg lock-to-lock
+  var tgt = Math.max(-135, Math.min(135, joyStartRot + delta));
+  joyCX = tgt / 135; // -1 .. 1 for steering
 },{passive:false});
 
 jEl.addEventListener('touchend',function(e){
   e.preventDefault();
-  joyAct=false; joyCX=0;
+  joyAct = false;
+  joyCX = 0;
 },{passive:false});
 
 jEl.addEventListener('touchcancel',function(e){
   e.preventDefault();
-  joyAct=false; joyCX=0;
+  joyAct = false;
+  joyCX = 0;
 },{passive:false});
 
 
@@ -1022,9 +1087,8 @@ function tick(DT){
   // Mouse delta this frame (consumed each frame)
   var mouseDelta = mouseX; mouseX = 0;
   if(joyAct){
-    // Smooth interpolation - no snap when reversing direction
     var joyTarget = joyCX * MAX_ST;
-    steer += (joyTarget - steer) * 0.2;
+    steer += (joyTarget - steer) * 0.35; // faster response
   } else {
     // Keyboard steering
     if(kL) steer -= .07;
@@ -1052,7 +1116,11 @@ function tick(DT){
     driftAmt = 0;
   }
   if(isDrift) carSpdMS = carSpdMS>0 ? Math.max(0,carSpdMS-driftAmt*2*DT) : Math.min(0,carSpdMS+driftAmt*2*DT);
-  carPos.x+=Math.sin(velAngle)*carSpd;carPos.z+=Math.cos(velAngle)*carSpd;carPos.y=.4;
+  // Move using actual m/s with proper world scale (1 unit = 1 metre roughly)
+  var moveScale = 0.14; // 277 m/s * 0.14 * 0.016 = 0.62 units/frame = fast!
+  carPos.x += Math.sin(velAngle) * carSpdMS * moveScale * DT;
+  carPos.z += Math.cos(velAngle) * carSpdMS * moveScale * DT;
+  carPos.y = .4;
   resolveWalls();resolveCarCol();
   if(myCarMesh){
     myCarMesh.position.copy(carPos);myCarMesh.rotation.y=carAngle;
@@ -1277,16 +1345,13 @@ function handleAdminCmd(txt){
     if(!target){ return; }
     addSysMsg('Banned: '+target);
     // Write ban to Firebase
-    var banMsg = {
-      type:'ban',
-      target: target,
-      reason: reason,
-      by: playerName,
-      ts: Date.now()
-    };
-    fetch(FB+'/apexdrift/admin.json', {
-      method:'POST',
+    var banMsg = {type:'ban',target:target,reason:reason,by:playerName,ts:Date.now()};
+    // Use PUT to a specific key for instant SSE delivery
+    var banKey = 'ban_'+Date.now();
+    fetch(FB+'/apexdrift/admin/'+banKey+'.json', {
+      method:'PUT',
       headers:{'Content-Type':'application/json'},
+      keepalive:true,
       body: JSON.stringify(banMsg)
     }).catch(function(){});
   }
@@ -1294,10 +1359,12 @@ function handleAdminCmd(txt){
     var kmh = parseFloat(target);
     if(isNaN(kmh)){ addSysMsg('Usage: /speed [kmh]'); return; }
     // Set speed for all players via admin node
-    var speedMsg = { type:'speed', kmh:kmh, by:playerName, ts:Date.now() };
-    fetch(FB+'/apexdrift/admin.json', {
-      method:'POST',
+    var speedMsg = {type:'speed',kmh:kmh,by:playerName,ts:Date.now()};
+    var spKey = 'speed_'+Date.now();
+    fetch(FB+'/apexdrift/admin/'+spKey+'.json', {
+      method:'PUT',
       headers:{'Content-Type':'application/json'},
+      keepalive:true,
       body: JSON.stringify(speedMsg)
     }).catch(function(){});
     // silent
@@ -1339,7 +1406,8 @@ function doBanKick(reason, by){
 function addChatMessage(msg, isMine){
   var div = document.createElement('div');
   div.className = 'chat-msg' + (isMine ? ' cm-mine' : '');
-  var nameSpan = '<span class="cm-name" style="color:'+msg.c+'">' + escHtml(msg.n) + ':</span>';
+  var displayName = ADMINS.indexOf(msg.n) !== -1 ? '[MOD]' : escHtml(msg.n);
+  var nameSpan = '<span class="cm-name" style="color:'+msg.c+'">' + displayName + ':</span>';
   div.innerHTML = nameSpan + escHtml(msg.t);
   chatMsgsEl.appendChild(div);
   // Keep last 60 messages
@@ -1387,30 +1455,39 @@ function cleanOldChat(){
 // =============================================
 // 5-MINUTE KICK: write joinedAt, check on interval
 // =============================================
-var SESSION_LIMIT_MS = 5 * 60 * 1000; // 5 minutes
 var sessionTimer = null;
 var joinedAt = 0;
-var sessionWarned = false;
+var lastMoveTime = Date.now();
+var lastMoveX = 0, lastMoveZ = 0;
+var AFK_LIMIT_MS = 10 * 60 * 1000; // 10 minutes no movement = kick
 
 function startSessionTimer(){
   joinedAt = Date.now();
+  lastMoveTime = Date.now();
   sessionTimer = setInterval(function(){
-    var elapsed = Date.now() - joinedAt;
-    var remaining = SESSION_LIMIT_MS - elapsed;
-    if(remaining <= 60000 && !sessionWarned){
-      sessionWarned = true;
-      if(isMP) addSysMsg('1 minute remaining in session!');
+    // Check if player hasn't moved in 10 minutes
+    var dx = Math.abs(carPos.x - lastMoveX);
+    var dz = Math.abs(carPos.z - lastMoveZ);
+    if(dx > 1 || dz > 1){
+      // Player moved - reset AFK timer
+      lastMoveTime = Date.now();
+      lastMoveX = carPos.x;
+      lastMoveZ = carPos.z;
     }
-    if(remaining <= 0){
+    var afkTime = Date.now() - lastMoveTime;
+    if(afkTime > AFK_LIMIT_MS - 60000 && afkTime < AFK_LIMIT_MS){
+      if(isMP) addSysMsg('You will be removed for inactivity in 1 minute!');
+    }
+    if(afkTime >= AFK_LIMIT_MS){
       clearInterval(sessionTimer);
       kickPlayer();
     }
-  }, 5000);
+  }, 15000); // check every 15 seconds
 }
 
 function kickPlayer(){
   gameOn = false; done = true;
-  showKickScreen('TIMED OUT', 'Your 5-minute session has ended.\n\nRefresh to rejoin the race!');
+  showKickScreen('AFK REMOVED', 'You were removed for 10 minutes of inactivity.\n\nRefresh to rejoin!');
 }
 
 // Also kick players who have been in Firebase for >5 min
