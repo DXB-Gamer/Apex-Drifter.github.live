@@ -132,15 +132,15 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
 #tui{position:fixed;inset:0;z-index:60;pointer-events:none;display:none}
 .sw-wheel-wrap{
   position:absolute;
-  width:clamp(130px,26vw,180px);
-  height:clamp(130px,26vw,180px);
+  width:clamp(140px,28vw,200px);
+  height:clamp(140px,28vw,200px);
   bottom:clamp(80px,15vh,140px);
-  left:clamp(12px,3vw,28px);
+  left:clamp(10px,2.5vw,26px);
   pointer-events:all;
   touch-action:none;
-  filter:drop-shadow(0 0 18px rgba(0,255,231,.28)) drop-shadow(0 0 6px rgba(0,0,0,.8));
-  transform-origin:center center;
+  filter:drop-shadow(0 0 22px rgba(0,255,231,.3)) drop-shadow(0 0 8px rgba(0,0,0,.9));
 }
+#jl{transform-origin:center center}
 .jk{display:none}
 #tb{position:absolute;bottom:clamp(88px,17vh,155px);right:clamp(14px,3.5vw,30px);display:flex;flex-direction:column;gap:7px;align-items:flex-end;pointer-events:all}
 .tb{background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.2);color:#fff;font-family:'Bebas Neue',sans-serif;letter-spacing:3px;border-radius:8px;cursor:pointer;pointer-events:all;user-select:none;touch-action:manipulation}
@@ -391,53 +391,54 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
 <div id="tui">
   <!-- Steering wheel touch control -->
   <div id="jl" class="sw-wheel-wrap">
-    <svg id="sw-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+    <svg id="sw-svg" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block">
       <defs>
-        <radialGradient id="hubGr" cx="50%" cy="38%" r="62%">
-          <stop offset="0%" stop-color="#1a2a3a"/>
-          <stop offset="100%" stop-color="#060810"/>
-        </radialGradient>
+        <linearGradient id="rG" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#2a2e45"/>
+          <stop offset="50%" stop-color="#181c2c"/>
+          <stop offset="100%" stop-color="#0e1018"/>
+        </linearGradient>
+        <linearGradient id="sG" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#22273a"/>
+          <stop offset="100%" stop-color="#0d1018"/>
+        </linearGradient>
+        <linearGradient id="hG" x1="30%" y1="20%" x2="70%" y2="80%">
+          <stop offset="0%" stop-color="#1a2233"/>
+          <stop offset="100%" stop-color="#080b12"/>
+        </linearGradient>
+        <linearGradient id="bG" x1="30%" y1="20%" x2="70%" y2="80%">
+          <stop offset="0%" stop-color="#00ffe7"/>
+          <stop offset="100%" stop-color="#008a7c"/>
+        </linearGradient>
       </defs>
-      <!-- Outer glow -->
-      <circle cx="100" cy="100" r="94" fill="rgba(0,255,231,.05)"/>
-      <!-- Rim base -->
-      <circle cx="100" cy="100" r="84" fill="none" stroke="#0a0c14" stroke-width="22"/>
-      <circle cx="100" cy="100" r="84" fill="none" stroke="#141828" stroke-width="18"/>
-      <!-- Neon top arc -->
-      <path d="M 45 47 A 84 84 0 0 1 155 47" fill="none" stroke="#00ffe7" stroke-width="7" stroke-linecap="round" opacity=".92"/>
-      <!-- Red bottom-left arc -->
-      <path d="M 22 130 A 84 84 0 0 1 62 183" fill="none" stroke="#ff3a5c" stroke-width="7" stroke-linecap="round" opacity=".85"/>
-      <!-- Red bottom-right arc -->
-      <path d="M 138 183 A 84 84 0 0 1 178 130" fill="none" stroke="#ff3a5c" stroke-width="7" stroke-linecap="round" opacity=".85"/>
-      <!-- Rim outline -->
-      <circle cx="100" cy="100" r="84" fill="none" stroke="#0d111e" stroke-width="5"/>
-      <!-- Grip texture -->
-      <circle cx="100" cy="100" r="84" fill="none" stroke="rgba(255,255,255,.035)" stroke-width="2" stroke-dasharray="2 9"/>
-      <!-- Top spoke -->
-      <rect x="95" y="18" width="10" height="62" rx="4" fill="#0a0c14"/>
-      <rect x="97" y="20" width="6" height="58" rx="2" fill="#1a1f30"/>
-      <rect x="99" y="20" width="2.5" height="58" rx="1" fill="rgba(0,255,231,.18)"/>
-      <!-- Bottom-left spoke -->
-      <line x1="100" y1="100" x2="38" y2="172" stroke="#0a0c14" stroke-width="11" stroke-linecap="round"/>
-      <line x1="100" y1="100" x2="38" y2="172" stroke="#1a1f30" stroke-width="7" stroke-linecap="round"/>
-      <line x1="100" y1="100" x2="38" y2="172" stroke="rgba(0,255,231,.1)" stroke-width="2.5" stroke-linecap="round"/>
-      <!-- Bottom-right spoke -->
-      <line x1="100" y1="100" x2="162" y2="172" stroke="#0a0c14" stroke-width="11" stroke-linecap="round"/>
-      <line x1="100" y1="100" x2="162" y2="172" stroke="#1a1f30" stroke-width="7" stroke-linecap="round"/>
-      <line x1="100" y1="100" x2="162" y2="172" stroke="rgba(0,255,231,.1)" stroke-width="2.5" stroke-linecap="round"/>
-      <!-- Hub rings -->
-      <circle cx="100" cy="100" r="26" fill="url(#hubGr)"/>
-      <circle cx="100" cy="100" r="24" fill="#0c1020" stroke="#00ffe7" stroke-width="1.5" opacity=".85"/>
-      <circle cx="100" cy="100" r="17" fill="#080c18"/>
-      <!-- Horn button -->
-      <circle cx="100" cy="100" r="11" fill="rgba(0,255,231,.07)" stroke="rgba(0,255,231,.4)" stroke-width="1.2"/>
-      <circle cx="100" cy="100" r="6" fill="#00ffe7" opacity=".75"/>
-      <circle cx="97.5" cy="97.5" r="2.5" fill="rgba(255,255,255,.45)"/>
-      <!-- 12 o'clock marker -->
-      <rect x="97" y="8" width="6" height="9" rx="3" fill="#00ffe7" opacity=".95"/>
-      <!-- Brand text in hub -->
-      <text x="100" y="96" text-anchor="middle" fill="rgba(0,255,231,.35)" font-size="5.5" font-family="'Bebas Neue',monospace" letter-spacing=".8">APEX</text>
-      <text x="100" y="106" text-anchor="middle" fill="rgba(0,255,231,.2)" font-size="4.5" font-family="'Bebas Neue',monospace" letter-spacing="1.5">DRIFT</text>
+      <circle cx="120" cy="120" r="112" fill="none" stroke="#00ffe7" stroke-width="1" opacity="0.1"/>
+      <circle cx="120" cy="120" r="100" fill="none" stroke="url(#rG)" stroke-width="28"/>
+      <circle cx="120" cy="120" r="100" fill="none" stroke="#fff" stroke-width="1" stroke-dasharray="1.5 11" opacity="0.04"/>
+      <circle cx="120" cy="120" r="86" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.05"/>
+      <path d="M 52 50 A 100 100 0 0 1 188 50" fill="none" stroke="#00ffe7" stroke-width="10" stroke-linecap="round" opacity="0.92"/>
+      <path d="M 28 148 A 100 100 0 0 1 75 210" fill="none" stroke="#ff3a5c" stroke-width="10" stroke-linecap="round" opacity="0.88"/>
+      <path d="M 165 210 A 100 100 0 0 1 212 148" fill="none" stroke="#ff3a5c" stroke-width="10" stroke-linecap="round" opacity="0.88"/>
+      <rect x="113" y="26" width="14" height="72" rx="5" fill="#0d1018"/>
+      <rect x="115" y="28" width="10" height="68" rx="3" fill="url(#sG)"/>
+      <rect x="119" y="28" width="2" height="68" rx="1" fill="#00ffe7" opacity="0.2"/>
+      <line x1="120" y1="120" x2="44" y2="206" stroke="#0d1018" stroke-width="16" stroke-linecap="round"/>
+      <line x1="120" y1="120" x2="44" y2="206" stroke="url(#sG)" stroke-width="11" stroke-linecap="round"/>
+      <line x1="120" y1="120" x2="44" y2="206" stroke="#00ffe7" stroke-width="1.5" stroke-linecap="round" opacity="0.14"/>
+      <line x1="120" y1="120" x2="196" y2="206" stroke="#0d1018" stroke-width="16" stroke-linecap="round"/>
+      <line x1="120" y1="120" x2="196" y2="206" stroke="url(#sG)" stroke-width="11" stroke-linecap="round"/>
+      <line x1="120" y1="120" x2="196" y2="206" stroke="#00ffe7" stroke-width="1.5" stroke-linecap="round" opacity="0.14"/>
+      <circle cx="120" cy="120" r="38" fill="url(#hG)"/>
+      <circle cx="120" cy="120" r="38" fill="none" stroke="#2a3050" stroke-width="1.5"/>
+      <polygon points="120,86 146,93 154,120 146,147 120,154 94,147 86,120 94,93" fill="#0c1020" stroke="#1e2535" stroke-width="1"/>
+      <circle cx="120" cy="120" r="20" fill="#0a0d18" stroke="#00ffe7" stroke-width="1.2" opacity="0.7"/>
+      <circle cx="120" cy="120" r="14" fill="url(#bG)" opacity="0.85"/>
+      <ellipse cx="115" cy="114" rx="5" ry="3.5" fill="white" opacity="0.22" transform="rotate(-25 115 114)"/>
+      <rect x="117" y="11" width="6" height="12" rx="3" fill="#00ffe7"/>
+      <rect x="226" y="117" width="10" height="6" rx="2" fill="#333" opacity="0.55"/>
+      <rect x="4"   y="117" width="10" height="6" rx="2" fill="#333" opacity="0.55"/>
+      <rect x="117" y="226" width="6" height="10" rx="2" fill="#333" opacity="0.38"/>
+      <text x="120" y="117" text-anchor="middle" fill="#00443e" font-size="7" font-family="monospace" letter-spacing="1.5" font-weight="bold">APEX</text>
+      <text x="120" y="128" text-anchor="middle" fill="#003028" font-size="5.5" font-family="monospace" letter-spacing="2">DRIFT</text>
     </svg>
   </div>
   <div id="tb">
@@ -887,45 +888,61 @@ window.addEventListener('deviceorientation',function(e){if(e.gamma!==null)tiltX=
 var joyAct=false,joyCX=0;
 var jEl=document.getElementById('jl'),jkEl=document.getElementById('jk');
 var swSvg = document.getElementById('sw-svg');
-var wheelAnimId = null;
-var wheelCurRot = 0;
+var wheelRot = 0, wheelVel = 0, wheelTarget = 0;
 
-function animateWheel(target){
-  if(wheelAnimId) cancelAnimationFrame(wheelAnimId);
-  function step(){
-    wheelCurRot += (target - wheelCurRot) * 0.28;
-    if(swSvg) swSvg.style.transform = 'rotate('+wheelCurRot.toFixed(2)+'deg)';
-    if(Math.abs(target - wheelCurRot) > 0.3) wheelAnimId = requestAnimationFrame(step);
-    else { wheelCurRot = target; if(swSvg) swSvg.style.transform = 'rotate('+target+'deg)'; }
-  }
-  wheelAnimId = requestAnimationFrame(step);
+// Exact same spring physics as the widget preview
+function updateWheelVisual(){
+  if(!swSvg) return;
+  // Target follows steer value (keyboard) or joystick
+  wheelTarget = joyAct ? joyCX * 135 : (steer / MAX_ST) * 135;
+  var force = (wheelTarget - wheelRot) * 0.3;
+  wheelVel = (wheelVel + force) * 0.75;
+  wheelRot += wheelVel;
+  // Hard clamp
+  if(wheelRot >  135){ wheelRot =  135; wheelVel = 0; }
+  if(wheelRot < -135){ wheelRot = -135; wheelVel = 0; }
+  swSvg.style.transform = 'rotate('+wheelRot.toFixed(2)+'deg)';
+}
+
+var joyStartAngle=0, joyStartRot=0;
+
+function getTouchAngle(e){
+  var r=jEl.getBoundingClientRect();
+  var cx=r.left+r.width/2,cy=r.top+r.height/2;
+  var t=e.touches[0];
+  return Math.atan2(t.clientY-cy,t.clientX-cx)*180/Math.PI;
 }
 
 jEl.addEventListener('touchstart',function(e){
   e.preventDefault();
-  joyAct=true;
+  joyAct=true; wheelVel=0;
+  joyStartAngle=getTouchAngle(e);
+  joyStartRot=wheelRot;
   var r=jEl.getBoundingClientRect();
-  jEl._cx=r.left+r.width/2;
-  jEl._cy=r.top+r.height/2;
+  jEl._cx=r.left+r.width/2; jEl._cy=r.top+r.height/2;
 },{passive:false});
 
 jEl.addEventListener('touchmove',function(e){
   e.preventDefault();
   if(!joyAct)return;
-  var t=e.touches[0];
-  var dx=t.clientX-jEl._cx;
-  var JR=jEl.offsetWidth*0.52;
-  joyCX = Math.max(-1,Math.min(1, dx/JR));
-  // Rotate wheel 135 degrees max each side
-  animateWheel(joyCX * 135);
+  var delta=getTouchAngle(e)-joyStartAngle;
+  while(delta>180)delta-=360;
+  while(delta<-180)delta+=360;
+  var tgt=Math.max(-135,Math.min(135,joyStartRot+delta));
+  joyCX=tgt/135;
 },{passive:false});
 
 jEl.addEventListener('touchend',function(e){
   e.preventDefault();
-  joyAct=false;
-  joyCX=0;
-  animateWheel(0);
+  joyAct=false; joyCX=0;
 },{passive:false});
+
+jEl.addEventListener('touchcancel',function(e){
+  e.preventDefault();
+  joyAct=false; joyCX=0;
+},{passive:false});
+
+
 function tb(id,k){var el=document.getElementById(id);if(!el)return;el.addEventListener('touchstart',function(e){e.preventDefault();keys[k]=true;},{passive:false});el.addEventListener('touchend',function(e){e.preventDefault();keys[k]=false;},{passive:false});}
 tb('tgas','w');tb('tbrk','s');tb('tdft',' ');
 document.getElementById('tup').addEventListener('touchstart',function(e){e.preventDefault();if(gameOn&&!done)shiftGear(1);},{passive:false});
@@ -1005,7 +1022,9 @@ function tick(DT){
   // Mouse delta this frame (consumed each frame)
   var mouseDelta = mouseX; mouseX = 0;
   if(joyAct){
-    steer = joyCX * MAX_ST; // joystick = direct position
+    // Smooth interpolation - no snap when reversing direction
+    var joyTarget = joyCX * MAX_ST;
+    steer += (joyTarget - steer) * 0.2;
   } else {
     // Keyboard steering
     if(kL) steer -= .07;
@@ -1048,11 +1067,8 @@ function tick(DT){
   document.getElementById('spd').textContent=kmh;
   var rb=document.getElementById('rpmb');rb.style.width=Math.min(100,rpm/RPM_MAX*100)+'%';
   rb.style.background=rpm>RPM_MAX*.88?'linear-gradient(90deg,var(--hot),#f60)':'linear-gradient(90deg,var(--neon),var(--gold))';
-  // Animate steering wheel to match steer value
-  if(swSvg && !joyAct){
-    var wDeg = (steer / MAX_ST) * 135;
-    if(Math.abs(wDeg - wheelCurRot) > 1) animateWheel(wDeg);
-  }
+  // Wheel visual updated every frame via spring physics
+  updateWheelVisual();
   updateAudio(DT);
   fpsF++;var fNow=performance.now();
   if(fNow-fpsLast>600){document.getElementById('fps').textContent=Math.round(fpsF*1000/(fNow-fpsLast))+' FPS';fpsF=0;fpsLast=fNow;}
