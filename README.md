@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -131,16 +132,15 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
 #tui{position:fixed;inset:0;z-index:60;pointer-events:none;display:none}
 .sw-wheel-wrap{
   position:absolute;
-  width:clamp(120px,24vw,165px);
-  height:clamp(120px,24vw,165px);
-  bottom:clamp(88px,17vh,155px);
-  left:clamp(14px,3.5vw,30px);
+  width:clamp(130px,26vw,180px);
+  height:clamp(130px,26vw,180px);
+  bottom:clamp(80px,15vh,140px);
+  left:clamp(12px,3vw,28px);
   pointer-events:all;
   touch-action:none;
-  filter:drop-shadow(0 0 14px rgba(0,255,231,.22));
+  filter:drop-shadow(0 0 18px rgba(0,255,231,.28)) drop-shadow(0 0 6px rgba(0,0,0,.8));
+  transform-origin:center center;
 }
-#jl{ transform-origin:center center; }
-/* keep .jk hidden - no knob on wheel */
 .jk{display:none}
 #tb{position:absolute;bottom:clamp(88px,17vh,155px);right:clamp(14px,3.5vw,30px);display:flex;flex-direction:column;gap:7px;align-items:flex-end;pointer-events:all}
 .tb{background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.2);color:#fff;font-family:'Bebas Neue',sans-serif;letter-spacing:3px;border-radius:8px;cursor:pointer;pointer-events:all;user-select:none;touch-action:manipulation}
@@ -169,7 +169,8 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
   .logo{font-size:82px}.sw{width:32px;height:32px}
   .btn-go{font-size:22px;padding:15px}.btn-mp{font-size:16px;padding:10px}
   #spd{font-size:62px}#lap-val{font-size:44px}#gear-val{font-size:52px}
-  #mm{width:132px;height:132px;bottom:190px}.jb{width:158px;height:158px}.jk{width:58px;height:58px}
+  #mm{width:132px;height:132px;bottom:190px}
+  .sw-wheel-wrap{width:200px;height:200px;bottom:100px;left:20px}
   #tgas{font-size:22px;padding:14px 32px}#tbrk{font-size:22px;padding:12px 28px}
 }
 
@@ -337,6 +338,13 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
           <div class="sl-opt" id="sl-trns-manual" onclick="setSl('trns','manual')">MANUAL</div>
         </div>
       </div>
+      <div class="sl-row">
+        <div class="sl-label">ENGINE</div>
+        <div class="sl-track" id="sl-eng">
+          <div class="sl-opt sl-on" id="sl-eng-petrol" onclick="setSl('eng','petrol')">&#x26FD; PETROL</div>
+          <div class="sl-opt" id="sl-eng-electric" onclick="setSl('eng','electric')">&#x26A1; ELECTRIC</div>
+        </div>
+      </div>
     </div>
     <div class="race-btns">
       <button class="race-btn" id="btn-solo">&#x25B6; SOLO</button>
@@ -383,23 +391,53 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
 <div id="tui">
   <!-- Steering wheel touch control -->
   <div id="jl" class="sw-wheel-wrap">
-    <svg id="sw-svg" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;transition:transform .05s">
-      <!-- Outer rim -->
-      <circle cx="80" cy="80" r="72" fill="none" stroke="rgba(0,255,231,.25)" stroke-width="14"/>
-      <circle cx="80" cy="80" r="72" fill="none" stroke="rgba(0,255,231,.5)" stroke-width="6" stroke-dasharray="4 3"/>
-      <!-- Hub -->
-      <circle cx="80" cy="80" r="22" fill="#0d1120" stroke="#00ffe7" stroke-width="2" opacity=".9"/>
-      <!-- Spokes -->
-      <line x1="80" y1="58" x2="80" y2="10" stroke="#1e2340" stroke-width="10" stroke-linecap="round"/>
-      <line x1="80" y1="58" x2="80" y2="10" stroke="#2d3260" stroke-width="4" stroke-linecap="round"/>
-      <line x1="80" y1="102" x2="42" y2="148" stroke="#1e2340" stroke-width="10" stroke-linecap="round"/>
-      <line x1="80" y1="102" x2="42" y2="148" stroke="#2d3260" stroke-width="4" stroke-linecap="round"/>
-      <line x1="80" y1="102" x2="118" y2="148" stroke="#1e2340" stroke-width="10" stroke-linecap="round"/>
-      <line x1="80" y1="102" x2="118" y2="148" stroke="#2d3260" stroke-width="4" stroke-linecap="round"/>
-      <!-- Center dot -->
-      <circle cx="80" cy="80" r="8" fill="#00ffe7" opacity=".7"/>
-      <!-- Top marker -->
-      <rect x="77" y="7" width="6" height="10" rx="3" fill="#00ffe7" opacity=".8"/>
+    <svg id="sw-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+      <defs>
+        <radialGradient id="hubGr" cx="50%" cy="38%" r="62%">
+          <stop offset="0%" stop-color="#1a2a3a"/>
+          <stop offset="100%" stop-color="#060810"/>
+        </radialGradient>
+      </defs>
+      <!-- Outer glow -->
+      <circle cx="100" cy="100" r="94" fill="rgba(0,255,231,.05)"/>
+      <!-- Rim base -->
+      <circle cx="100" cy="100" r="84" fill="none" stroke="#0a0c14" stroke-width="22"/>
+      <circle cx="100" cy="100" r="84" fill="none" stroke="#141828" stroke-width="18"/>
+      <!-- Neon top arc -->
+      <path d="M 45 47 A 84 84 0 0 1 155 47" fill="none" stroke="#00ffe7" stroke-width="7" stroke-linecap="round" opacity=".92"/>
+      <!-- Red bottom-left arc -->
+      <path d="M 22 130 A 84 84 0 0 1 62 183" fill="none" stroke="#ff3a5c" stroke-width="7" stroke-linecap="round" opacity=".85"/>
+      <!-- Red bottom-right arc -->
+      <path d="M 138 183 A 84 84 0 0 1 178 130" fill="none" stroke="#ff3a5c" stroke-width="7" stroke-linecap="round" opacity=".85"/>
+      <!-- Rim outline -->
+      <circle cx="100" cy="100" r="84" fill="none" stroke="#0d111e" stroke-width="5"/>
+      <!-- Grip texture -->
+      <circle cx="100" cy="100" r="84" fill="none" stroke="rgba(255,255,255,.035)" stroke-width="2" stroke-dasharray="2 9"/>
+      <!-- Top spoke -->
+      <rect x="95" y="18" width="10" height="62" rx="4" fill="#0a0c14"/>
+      <rect x="97" y="20" width="6" height="58" rx="2" fill="#1a1f30"/>
+      <rect x="99" y="20" width="2.5" height="58" rx="1" fill="rgba(0,255,231,.18)"/>
+      <!-- Bottom-left spoke -->
+      <line x1="100" y1="100" x2="38" y2="172" stroke="#0a0c14" stroke-width="11" stroke-linecap="round"/>
+      <line x1="100" y1="100" x2="38" y2="172" stroke="#1a1f30" stroke-width="7" stroke-linecap="round"/>
+      <line x1="100" y1="100" x2="38" y2="172" stroke="rgba(0,255,231,.1)" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Bottom-right spoke -->
+      <line x1="100" y1="100" x2="162" y2="172" stroke="#0a0c14" stroke-width="11" stroke-linecap="round"/>
+      <line x1="100" y1="100" x2="162" y2="172" stroke="#1a1f30" stroke-width="7" stroke-linecap="round"/>
+      <line x1="100" y1="100" x2="162" y2="172" stroke="rgba(0,255,231,.1)" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Hub rings -->
+      <circle cx="100" cy="100" r="26" fill="url(#hubGr)"/>
+      <circle cx="100" cy="100" r="24" fill="#0c1020" stroke="#00ffe7" stroke-width="1.5" opacity=".85"/>
+      <circle cx="100" cy="100" r="17" fill="#080c18"/>
+      <!-- Horn button -->
+      <circle cx="100" cy="100" r="11" fill="rgba(0,255,231,.07)" stroke="rgba(0,255,231,.4)" stroke-width="1.2"/>
+      <circle cx="100" cy="100" r="6" fill="#00ffe7" opacity=".75"/>
+      <circle cx="97.5" cy="97.5" r="2.5" fill="rgba(255,255,255,.45)"/>
+      <!-- 12 o'clock marker -->
+      <rect x="97" y="8" width="6" height="9" rx="3" fill="#00ffe7" opacity=".95"/>
+      <!-- Brand text in hub -->
+      <text x="100" y="96" text-anchor="middle" fill="rgba(0,255,231,.35)" font-size="5.5" font-family="'Bebas Neue',monospace" letter-spacing=".8">APEX</text>
+      <text x="100" y="106" text-anchor="middle" fill="rgba(0,255,231,.2)" font-size="4.5" font-family="'Bebas Neue',monospace" letter-spacing="1.5">DRIFT</text>
     </svg>
   </div>
   <div id="tb">
@@ -613,7 +651,8 @@ window.addEventListener('load',function(){doAutoDetect();});
 // PALETTE + WIRING
 // =============================================
 var PALETTE=['#00ffe7','#ff3a5c','#ffc820','#a78bfa','#34d399','#f97316','#38bdf8','#fb923c'];
-var transmission = 'auto'; // 'auto' or 'manual'
+var transmission = 'auto';
+var engineType = 'petrol'; // 'petrol' or 'electric'
 
 function setSl(type, val){
   if(type === 'cam'){
@@ -624,6 +663,11 @@ function setSl(type, val){
     if(hint) hint.textContent = val==='1p'
       ? 'W=Gas S=Brake A/D=Steer Space=Drift ESC=Pause | Click game to lock mouse'
       : 'W=Gas S=Brake A/D=Steer Space=Drift ESC=Pause';
+  }
+  if(type === 'eng'){
+    engineType = val;
+    document.getElementById('sl-eng-petrol').classList.toggle('sl-on', val==='petrol');
+    document.getElementById('sl-eng-electric').classList.toggle('sl-on', val==='electric');
   }
   if(type === 'trns'){
     transmission = val;
@@ -652,11 +696,11 @@ PALETTE.forEach(function(col,i){
 });
 
 // camera controlled by setSl() sliders
-document.getElementById('btn-solo').onclick=function(){launch(false);};
+document.getElementById('btn-solo').onclick=function(){initAudio();launch(false);};
 document.getElementById('iname').addEventListener('keydown',function(e){if(e.key==='Enter')launch(false);});
 document.getElementById('btn-mp').onclick=function(){document.getElementById('menu').classList.add('off');document.getElementById('mpm').classList.remove('off');startMPConn();};
 document.getElementById('btn-cxl').onclick=function(){document.getElementById('mpm').classList.add('off');document.getElementById('menu').classList.remove('off');};
-document.getElementById('btn-conn').onclick=function(){launch(true);};
+document.getElementById('btn-conn').onclick=function(){initAudio();launch(true);};
 document.getElementById('btn-res').onclick=function(){paused=false;document.getElementById('paus').classList.add('off');};
 document.getElementById('btn-quit').onclick=function(){location.reload();};
 document.getElementById('btn-again').onclick=function(){location.reload();};
@@ -774,7 +818,7 @@ function resolveWalls(){
     var cpx=w.ax+wux*t,cpz=w.az+wuz*t,dx=carPos.x-cpx,dz=carPos.z-cpz,dist=Math.sqrt(dx*dx+dz*dz);
     if(dist<CAR_R&&dist>.001){carPos.x+=dx/dist*(CAR_R-dist);carPos.z+=dz/dist*(CAR_R-dist);carSpdMS*=BNCE;carSpd=carSpdMS/277.8;hit=true;}
   }
-  if(hit){var hf=document.getElementById('hf');hf.style.opacity='1';setTimeout(function(){hf.style.opacity='0';},80);}
+  if(hit){var hf=document.getElementById('hf');hf.style.opacity='1';setTimeout(function(){hf.style.opacity='0';},80);playClunk();}
 }
 function resolveCarCol(){
   if(!isMP)return;
@@ -800,8 +844,12 @@ function tickSmoke(){
 // =============================================
 // ENGINE - 6 GEARS, G6=1000KM/H
 // =============================================
-var GTOP=[22,60,120,180,240,277.8];
-var GACC=[45,38,30,22,16,11];
+var GTOP_PETROL=[22,60,120,180,240,277.8];
+var GACC_PETROL=[45,38,30,22,16,11];
+var GTOP_ELECTRIC=[50,120,200,277.8,277.8,277.8]; // electric torque = instant, same top
+var GACC_ELECTRIC=[90,70,50,35,22,14]; // electric accel = WAY faster off the line
+var GTOP=GTOP_PETROL;
+var GACC=GACC_PETROL;
 var RPM_IDLE=900,RPM_MAX=7200,SHIFT_MS=260;
 var gear=0,rpm=RPM_IDLE,clutch=0,shiftT=0;
 var carSpdMS=0,carSpd=0;
@@ -809,7 +857,7 @@ var carSpdMS=0,carSpd=0;
 function shiftGear(d){
   var next=Math.max(0,Math.min(5,gear+d));if(next===gear)return;
   gear=next;clutch=1;shiftT=SHIFT_MS;
-  document.getElementById('gear-val').textContent=gear+1;
+  document.getElementById('gear-val').textContent=gear+1;playShiftClick();
   var gf=document.getElementById('gf');
   gf.textContent=(d>0?'  ':'  ')+(gear+1);gf.style.color=d>0?'var(--neon)':'var(--gold)';
   gf.style.opacity='1';setTimeout(function(){gf.style.opacity='0';},380);
@@ -828,7 +876,10 @@ document.addEventListener('keydown',function(e){
 document.addEventListener('keyup',function(e){keys[e.key]=false;});
 var mouseX=0;
 document.addEventListener('mousemove',function(e){if(gameOn&&!done&&!paused)mouseX+=e.movementX;});
-document.getElementById('c').addEventListener('click',function(){if(viewMode==='1p'&&gameOn&&!done)document.getElementById('c').requestPointerLock();});
+document.getElementById('c').addEventListener('click',function(){
+  if(audioCtx&&audioCtx.state==='suspended') audioCtx.resume();
+  if(viewMode==='1p'&&gameOn&&!done) document.getElementById('c').requestPointerLock();
+});
 var tiltX=0;
 window.addEventListener('deviceorientation',function(e){if(e.gamma!==null)tiltX=Math.max(-45,Math.min(45,e.gamma));},{passive:true});
 
@@ -836,8 +887,19 @@ window.addEventListener('deviceorientation',function(e){if(e.gamma!==null)tiltX=
 var joyAct=false,joyCX=0;
 var jEl=document.getElementById('jl'),jkEl=document.getElementById('jk');
 var swSvg = document.getElementById('sw-svg');
-var wheelRot = 0; // current visual rotation degrees
-var wheelTarget = 0;
+var wheelAnimId = null;
+var wheelCurRot = 0;
+
+function animateWheel(target){
+  if(wheelAnimId) cancelAnimationFrame(wheelAnimId);
+  function step(){
+    wheelCurRot += (target - wheelCurRot) * 0.28;
+    if(swSvg) swSvg.style.transform = 'rotate('+wheelCurRot.toFixed(2)+'deg)';
+    if(Math.abs(target - wheelCurRot) > 0.3) wheelAnimId = requestAnimationFrame(step);
+    else { wheelCurRot = target; if(swSvg) swSvg.style.transform = 'rotate('+target+'deg)'; }
+  }
+  wheelAnimId = requestAnimationFrame(step);
+}
 
 jEl.addEventListener('touchstart',function(e){
   e.preventDefault();
@@ -852,23 +914,17 @@ jEl.addEventListener('touchmove',function(e){
   if(!joyAct)return;
   var t=e.touches[0];
   var dx=t.clientX-jEl._cx;
-  var dy=t.clientY-jEl._cy;
-  var JR=jEl.offsetWidth/2;
-  var dist=Math.min(Math.sqrt(dx*dx+dy*dy),JR);
-  var ang=Math.atan2(dy,dx);
-  // Only use X component for steering (-1 to 1)
+  var JR=jEl.offsetWidth*0.52;
   joyCX = Math.max(-1,Math.min(1, dx/JR));
-  // Rotate wheel SVG visually (max 120 degrees lock-to-lock)
-  wheelTarget = joyCX * 120;
-  if(swSvg) swSvg.style.transform = 'rotate('+wheelTarget+'deg)';
+  // Rotate wheel 135 degrees max each side
+  animateWheel(joyCX * 135);
 },{passive:false});
 
 jEl.addEventListener('touchend',function(e){
   e.preventDefault();
   joyAct=false;
   joyCX=0;
-  wheelTarget=0;
-  if(swSvg) swSvg.style.transform = 'rotate(0deg)';
+  animateWheel(0);
 },{passive:false});
 function tb(id,k){var el=document.getElementById(id);if(!el)return;el.addEventListener('touchstart',function(e){e.preventDefault();keys[k]=true;},{passive:false});el.addEventListener('touchend',function(e){e.preventDefault();keys[k]=false;},{passive:false});}
 tb('tgas','w');tb('tbrk','s');tb('tdft',' ');
@@ -895,6 +951,12 @@ function aDiff(a,b){var d=a-b;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=M
 function launch(mp){
   playerName=document.getElementById('iname').value.trim()||'Driver';
   playerColor=pickedColor;
+  // Set gear arrays based on engine type
+  if(engineType==='electric'){
+    GTOP=GTOP_ELECTRIC; GACC=GACC_ELECTRIC;
+  } else {
+    GTOP=GTOP_PETROL; GACC=GACC_PETROL;
+  }
   document.getElementById('menu').classList.add('off');
   document.getElementById('mpm').classList.add('off');
   initThree();buildTrack();
@@ -910,8 +972,11 @@ function launch(mp){
 }
 function countdown(cb){
   var el=document.getElementById('cd');
-  function show(t,c){el.className='show'+(c?' '+c:'');el.textContent=t;setTimeout(function(){el.className='';},680);}
-  show('3');setTimeout(function(){show('2');},1000);setTimeout(function(){show('1');},2000);setTimeout(function(){show('GO!','go');cb();},3000);
+  function show(t,cc){el.className='show'+(cc?' '+cc:'');el.textContent=t;setTimeout(function(){el.className='';},680);}
+  show('3');playCountdownBeep(false);
+  setTimeout(function(){show('2');playCountdownBeep(false);},1000);
+  setTimeout(function(){show('1');playCountdownBeep(false);},2000);
+  setTimeout(function(){show('GO!','go');playCountdownBeep(true);cb();},3000);
 }
 
 // =============================================
@@ -983,11 +1048,12 @@ function tick(DT){
   document.getElementById('spd').textContent=kmh;
   var rb=document.getElementById('rpmb');rb.style.width=Math.min(100,rpm/RPM_MAX*100)+'%';
   rb.style.background=rpm>RPM_MAX*.88?'linear-gradient(90deg,var(--hot),#f60)':'linear-gradient(90deg,var(--neon),var(--gold))';
-  // Animate steering wheel on desktop too (if visible)
+  // Animate steering wheel to match steer value
   if(swSvg && !joyAct){
-    var wDeg = steer * 120;
-    swSvg.style.transform = 'rotate('+wDeg+'deg)';
+    var wDeg = (steer / MAX_ST) * 135;
+    if(Math.abs(wDeg - wheelCurRot) > 1) animateWheel(wDeg);
   }
+  updateAudio(DT);
   fpsF++;var fNow=performance.now();
   if(fNow-fpsLast>600){document.getElementById('fps').textContent=Math.round(fpsF*1000/(fNow-fpsLast))+' FPS';fpsF=0;fpsLast=fNow;}
   checkCPs();checkWW();
@@ -1347,6 +1413,197 @@ function checkPlayerExpiry(data){
     }
   });
 }
+
+
+// =============================================
+// AUDIO ENGINE - Web Audio API
+// =============================================
+var audioCtx = null;
+var engineOsc = null, engineGain = null, engineOsc2 = null;
+var driftNoise = null, driftGain = null;
+var turboOsc = null, turboGain = null;
+var lastGearSound = 0;
+var audioStarted = false;
+
+function initAudio(){
+  if(audioStarted) return;
+  audioStarted = true;
+  try{
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // -- MASTER GAIN --
+    var master = audioCtx.createGain();
+    master.gain.value = 0.6;
+    master.connect(audioCtx.destination);
+
+    // -- ENGINE OSCILLATOR (main tone) --
+    engineOsc = audioCtx.createOscillator();
+    engineOsc.type = engineType==='electric' ? 'sawtooth' : 'sawtooth';
+    engineOsc.frequency.value = 80;
+    engineGain = audioCtx.createGain();
+    engineGain.gain.value = 0;
+
+    // Distortion for petrol grit
+    var dist = audioCtx.createWaveShaper();
+    dist.curve = makeDistCurve(engineType==='electric' ? 60 : 200);
+    dist.oversample = '4x';
+
+    // Low pass filter - shapes the tone
+    var lpf = audioCtx.createBiquadFilter();
+    lpf.type = 'lowpass';
+    lpf.frequency.value = engineType==='electric' ? 3000 : 1800;
+    lpf.Q.value = 2.5;
+
+    engineOsc.connect(dist);
+    dist.connect(lpf);
+    lpf.connect(engineGain);
+    engineGain.connect(master);
+    engineOsc.start();
+
+    // -- ENGINE OSC 2 (harmonic layer) --
+    engineOsc2 = audioCtx.createOscillator();
+    engineOsc2.type = engineType==='electric' ? 'sine' : 'triangle';
+    engineOsc2.frequency.value = 160;
+    var eg2 = audioCtx.createGain();
+    eg2.gain.value = 0;
+    engineGain.connect = engineGain.connect; // keep ref
+    var lpf2 = audioCtx.createBiquadFilter();
+    lpf2.type = 'lowpass';
+    lpf2.frequency.value = 2400;
+    engineOsc2.connect(lpf2);
+    lpf2.connect(eg2);
+    eg2.connect(master);
+    engineOsc2.start();
+    engineGain._osc2gain = eg2;
+
+    // -- DRIFT / TIRE SQUEAL (white noise) --
+    var noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate*0.5, audioCtx.sampleRate);
+    var nd = noiseBuffer.getChannelData(0);
+    for(var i=0;i<nd.length;i++) nd[i]=(Math.random()*2-1);
+    driftNoise = audioCtx.createBufferSource();
+    driftNoise.buffer = noiseBuffer;
+    driftNoise.loop = true;
+    driftGain = audioCtx.createGain();
+    driftGain.gain.value = 0;
+    var bpf = audioCtx.createBiquadFilter();
+    bpf.type = 'bandpass';
+    bpf.frequency.value = 1200;
+    bpf.Q.value = 0.8;
+    driftNoise.connect(bpf);
+    bpf.connect(driftGain);
+    driftGain.connect(master);
+    driftNoise.start();
+
+    // -- TURBO WHINE (electric whine / petrol turbo) --
+    turboOsc = audioCtx.createOscillator();
+    turboOsc.type = 'sine';
+    turboOsc.frequency.value = 800;
+    turboGain = audioCtx.createGain();
+    turboGain.gain.value = 0;
+    var tDist = audioCtx.createWaveShaper();
+    tDist.curve = makeDistCurve(30);
+    turboOsc.connect(tDist);
+    tDist.connect(turboGain);
+    turboGain.connect(master);
+    turboOsc.start();
+
+  }catch(e){ console.warn('Audio init failed:', e); }
+}
+
+function makeDistCurve(amount){
+  var n=256, curve=new Float32Array(n), x;
+  for(var i=0;i<n;i++){
+    x=i*2/n-1;
+    curve[i]=((Math.PI+amount)*x)/(Math.PI+amount*Math.abs(x));
+  }
+  return curve;
+}
+
+function updateAudio(DT){
+  if(!audioCtx||!engineOsc) return;
+  var t = audioCtx.currentTime;
+
+  // RPM -> frequency mapping
+  var rpmNorm = (rpm-RPM_IDLE)/(RPM_MAX-RPM_IDLE); // 0-1
+  var spd = Math.abs(carSpdMS);
+
+  if(engineType==='electric'){
+    // Electric: smooth whine, pitch follows speed directly
+    var baseFreq = 60 + spd * 3.2;
+    var harmFreq  = baseFreq * 2.5;
+    engineOsc.frequency.setTargetAtTime(baseFreq, t, 0.04);
+    if(engineGain._osc2gain) engineGain._osc2gain.gain.setTargetAtTime(fwdKey ? 0.18 : 0.05, t, 0.05);
+    // Turbo whine = high pitch electric motor
+    var whineFreq = 400 + spd * 8;
+    turboOsc.frequency.setTargetAtTime(Math.min(whineFreq, 3200), t, 0.03);
+    turboGain.gain.setTargetAtTime(fwdKey ? 0.12 + rpmNorm*0.1 : 0.03, t, 0.06);
+  } else {
+    // Petrol: RPM-driven rumble
+    var baseFreq = 55 + rpmNorm * 140;
+    var harmFreq  = baseFreq * 1.5;
+    engineOsc.frequency.setTargetAtTime(baseFreq, t, 0.06);
+    if(engineGain._osc2gain) engineGain._osc2gain.gain.setTargetAtTime(fwdKey ? 0.12 : 0.04, t, 0.07);
+    // Turbo: whoosh at high RPM
+    var tFreq = 300 + rpmNorm*600;
+    turboOsc.frequency.setTargetAtTime(tFreq, t, 0.08);
+    turboGain.gain.setTargetAtTime(rpmNorm > 0.7 ? (rpmNorm-0.7)*0.15 : 0, t, 0.1);
+  }
+
+  // Engine volume: louder when throttle
+  var targetVol = fwdKey ? 0.25 + rpmNorm*0.28 : (spd>1 ? 0.08+rpmNorm*0.08 : 0.04);
+  engineGain.gain.setTargetAtTime(targetVol, t, 0.05);
+
+  // Drift squeal
+  var isDrift = (keys[' ']||keys['Shift']||keys['ShiftLeft']||keys['ShiftRight']) && spd>3;
+  var driftVol = isDrift ? Math.min(0.35, driftAmt*0.9) : (driftAmt>0.12 ? driftAmt*0.3 : 0);
+  driftGain.gain.setTargetAtTime(driftVol, t, 0.08);
+
+  // Wall hit clunk - handled in resolveWalls via playClunk()
+}
+
+function playClunk(){
+  if(!audioCtx) return;
+  try{
+    var osc=audioCtx.createOscillator();
+    var g=audioCtx.createGain();
+    osc.type='square';
+    osc.frequency.value=120;
+    osc.frequency.setTargetAtTime(40,audioCtx.currentTime,0.05);
+    g.gain.value=0.5;
+    g.gain.setTargetAtTime(0,audioCtx.currentTime+0.01,0.04);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime+0.18);
+  }catch(e){}
+}
+
+function playShiftClick(){
+  if(!audioCtx) return;
+  try{
+    var osc=audioCtx.createOscillator();
+    var g=audioCtx.createGain();
+    osc.type='square';
+    osc.frequency.value=engineType==='electric'?600:300;
+    g.gain.value=0.15;
+    g.gain.setTargetAtTime(0,audioCtx.currentTime+0.02,0.03);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime+0.1);
+  }catch(e){}
+}
+
+function playCountdownBeep(isGo){
+  if(!audioCtx) return;
+  try{
+    var osc=audioCtx.createOscillator();
+    var g=audioCtx.createGain();
+    osc.type='sine';
+    osc.frequency.value=isGo?880:440;
+    g.gain.value=0.3;
+    g.gain.setTargetAtTime(0,audioCtx.currentTime+(isGo?0.3:0.12),0.05);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime+(isGo?0.4:0.15));
+  }catch(e){}
+}
+
 
 // =============================================
 // LOOP
