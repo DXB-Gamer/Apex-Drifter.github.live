@@ -719,8 +719,8 @@ function setDev(type){
     var tui=document.getElementById('tui');
     if(tui) tui.style.display='block';
     viewMode='3p';
-    document.getElementById('v3p').classList.add('on');
-    document.getElementById('v1p').classList.remove('on');
+    document.getElementById('sl-cam-3p').classList.add('sl-on');
+    document.getElementById('sl-cam-1p').classList.remove('sl-on');
   }
   if(type==='phone'){
     if(screen.orientation&&screen.orientation.lock){
@@ -731,7 +731,59 @@ function setDev(type){
   }
 }
 
-window.addEventListener('load',doAutoDetect);
+window.addEventListener('load', function(){
+  doAutoDetect();
+  // Check if we were in a game - restore and relaunch
+  try{
+    if(localStorage.getItem('apx_playing')==='1'){
+      var n  = localStorage.getItem('apx_name')  || 'Driver';
+      var col= localStorage.getItem('apx_color') || '#00ffe7';
+      var vm = localStorage.getItem('apx_view')  || '3p';
+      var eng= localStorage.getItem('apx_eng')   || 'petrol';
+      var trn= localStorage.getItem('apx_trns')  || 'auto';
+      var dev= localStorage.getItem('apx_dev')   || 'laptop';
+      var mp = localStorage.getItem('apx_mp')==='1';
+
+      // Restore settings
+      document.getElementById('iname').value = n;
+      pickedColor = col;
+      viewMode = vm; engineType = eng; transmission = trn; devType = dev;
+
+      // Highlight correct color swatch
+      document.querySelectorAll('.sw').forEach(function(sw){
+        sw.classList.toggle('on', sw.style.background===col||sw.style.backgroundColor===col);
+      });
+
+      // Set sliders
+      setSl('cam', vm); setSl('eng', eng); setSl('trns', trn);
+
+      // Apply device mode
+      document.body.className='dev-'+dev;
+      if(dev==='phone'||dev==='ipad'){
+        var tui=document.getElementById('tui');
+        if(tui) tui.style.display='block';
+      }
+
+      // Skip menu - go straight into game
+      document.getElementById('dp').classList.add('off');
+      document.getElementById('menu').classList.add('off');
+
+      // Show a quick "restoring..." flash then launch
+      var cdEl=document.getElementById('cd');
+      cdEl.className='show'; cdEl.textContent='BACK!';
+      setTimeout(function(){cdEl.className='';},800);
+
+      if(mp){
+        // Reconnect to multiplayer
+        isMP=true;
+        initAudio(); launch(true);
+      } else {
+        initAudio(); launch(false);
+      }
+      return;
+    }
+  }catch(e){}
+});
 
 // =============================================
 // PALETTE + MENU WIRING
@@ -765,16 +817,21 @@ function setSl(type,val){
   }
 }
 
-document.getElementById('v3p').onclick=function(){setSl('cam','3p');};
-document.getElementById('v1p').onclick=function(){setSl('cam','1p');};
+// camera controlled by sl-cam-3p / sl-cam-1p onclick in HTML
 document.getElementById('btn-solo').onclick=function(){initAudio();launch(false);};
 document.getElementById('iname').addEventListener('keydown',function(e){if(e.key==='Enter')launch(false);});
 document.getElementById('btn-mp').onclick=function(){document.getElementById('menu').classList.add('off');document.getElementById('mpm').classList.remove('off');startMPConn();};
 document.getElementById('btn-cxl').onclick=function(){document.getElementById('mpm').classList.add('off');document.getElementById('menu').classList.remove('off');};
 document.getElementById('btn-conn').onclick=function(){initAudio();launch(true);};
 document.getElementById('btn-res').onclick=function(){paused=false;document.getElementById('paus').classList.add('off');var pb=document.getElementById('pause-btn');if(pb)pb.innerHTML='&#9646;&#9646;';};
-document.getElementById('btn-quit').onclick=function(){location.reload();};
-document.getElementById('btn-again').onclick=function(){location.reload();};
+document.getElementById('btn-quit').onclick=function(){
+  try{localStorage.removeItem('apx_playing');}catch(e){}
+  location.reload();
+};
+document.getElementById('btn-again').onclick=function(){
+  try{localStorage.removeItem('apx_playing');}catch(e){}
+  location.reload();
+};
 
 function togglePause(){
   if(!gameOn||done) return;
@@ -1038,12 +1095,21 @@ function aDiff(a,b){var d=a-b;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=M
 function launch(mp){
   playerName=document.getElementById('iname').value.trim()||'Driver';
   playerColor=pickedColor;
-  // Set gear arrays based on engine type
-  if(engineType==='electric'){
-    GTOP=GTOP_ELECTRIC; GACC=GACC_ELECTRIC;
-  } else {
-    GTOP=GTOP_PETROL; GACC=GACC_PETROL;
-  }
+  if(engineType==='electric'){ GTOP=GTOP_ELECTRIC; GACC=GACC_ELECTRIC; }
+  else { GTOP=GTOP_PETROL; GACC=GACC_PETROL; }
+
+  // Save all settings so refresh restores them
+  try{
+    localStorage.setItem('apx_name', playerName);
+    localStorage.setItem('apx_color', playerColor);
+    localStorage.setItem('apx_view', viewMode);
+    localStorage.setItem('apx_eng', engineType);
+    localStorage.setItem('apx_trns', transmission);
+    localStorage.setItem('apx_dev', devType);
+    localStorage.setItem('apx_mp', mp?'1':'0');
+    localStorage.setItem('apx_playing', '1');
+  }catch(e){}
+
   document.getElementById('menu').classList.add('off');
   document.getElementById('mpm').classList.add('off');
   initThree();buildTrack();
@@ -1399,7 +1465,7 @@ function showKickScreen(title, reason){
     countdown--;
     document.getElementById('kick-timer').textContent = 'Returning in ' + countdown + 's...';
     prog.style.width = ((countdown/30)*100) + '%';
-    if(countdown <= 0){ clearInterval(iv); location.reload(); }
+    if(countdown <= 0){ clearInterval(iv); try{localStorage.removeItem('apx_playing');}catch(e){} location.reload(); }
   }, 1000);
   // Clean up Firebase presence
   fbDel(); stopPoll();
