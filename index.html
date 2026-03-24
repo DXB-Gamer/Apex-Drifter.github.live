@@ -496,7 +496,10 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
 </div>
 
 <!-- THREE.JS from reliable CDN -->
+<script src="https://cdn.ably.com/lib/ably.min-2.js"></script>
+<script src="https://cdn.ably.com/lib/ably.min-2.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.ably.com/lib/ably.min-2.js"></script>
 <script>
 // ---- verify THREE loaded ----
 if(typeof THREE === 'undefined'){
@@ -507,383 +510,171 @@ if(typeof THREE === 'undefined'){
 // =============================================
 // FIREBASE REST
 // =============================================
-var FB='https://apex-drifter-official-default-rtdb.firebaseio.com';
-var isMP=false,myId='',lastSync=0;
-var remotes={};
-var _ws=null, _wsReady=false, _wsReconnTimer=null;
-var _adminStream=null, lastAdminTs=Date.now();
-var _chatFallbackTmr=null, lastChatTs=Date.now();
-var pollTmr=null,chatPollTmr=null,adminPollTmr=null,chatPollTmr2=null,_chatStream=null;
+// =============================================
+// ABLY - Full realtime (positions, chat, admin)
+// =============================================
+var ABLY_KEY = 'K6PhVg.SZ6KuA:PMsXZs0OFodwzQRqTzvkpdyE52kDoCHfY2tymhetLew';
+var isMP = false, myId = '', lastSync = 0;
+var remotes = {};
+var _ably = null, _posCh = null, _chatCh = null, _adminCh = null;
 
-// -- PieSocket WebSocket channel for positions + chat --
-var PS_KEY  = 'VCXCEuvhGcBDP7XhiJJUDvR1e1D3eiVjgZ9VRiaV';
-var PS_CHAN  = 'apexdrift_race_v2';
-var PS_URL  = 'wss://demo.piesocket.com/v3/'+PS_CHAN+'?api_key='+PS_KEY+'&notify_self=0';
+// -- Connect --
+function startSSE(){
+  stopPoll();
+  if(typeof Ably === 'undefined'){ console.error('Ably SDK not loaded'); return; }
 
-function _openWS(){
-  if(_ws){ try{_ws.close();}catch(e){} _ws=null; }
-  clearTimeout(_wsReconnTimer);
-  try{
-    _ws = new WebSocket(PS_URL);
-    _ws.onopen = function(){
-      _wsReady=true;
-      console.log('WS connected');
-      // Announce ourselves
-      _wsSend({type:'join', id:myId, name:playerName, color:playerColor});
-    };
-    _ws.onmessage = function(e){
-      try{
-        var d=JSON.parse(e.data);
-        if(!d||!d.type) return;
-        if(d.id===myId) return; // skip own messages
-        if(d.type==='pos')   _handlePos(d);
-        if(d.type==='chat')  _handleWsChat(d);
-        if(d.type==='join')  _handleJoin(d);
-        if(d.type==='leave') _handleLeave(d);
-        if(d.type==='ban' && d.target===playerName) doBanKick(d.reason, d.by);
-        if(d.type==='speed'&& d.by!==playerName){ carSpdMS=d.kmh/3.6; carSpd=carSpdMS/277.8; }
-      }catch(x){}
-    };
-    _ws.onclose = function(){
-      _wsReady=false;
-      // Reconnect in 500ms
-      _wsReconnTimer=setTimeout(function(){ if(isMP) _openWS(); },500);
-    };
-    _ws.onerror = function(){
-      _wsReady=false;
-    };
-  }catch(e){
-    _wsReconnTimer=setTimeout(function(){ if(isMP) _openWS(); },500);
-  }
+  myId = myId || Math.random().toString(36).slice(2,10);
+
+  _ably = new Ably.Realtime({
+    key: ABLY_KEY,
+    clientId: myId,
+    echoMessages: false,
+    // Keep connection alive
+    disconnectedRetryTimeout: 1000,
+    suspendedRetryTimeout: 2000
+  });
+
+  _ably.connection.on('connected', function(){
+    addSysMsg('Connected to race server!');
+    _setupPositions();
+    _setupChat();
+    _setupAdmin();
+  });
+
+  _ably.connection.on('failed', function(){
+    addSysMsg('Connection failed - retrying...');
+  });
 }
 
-function _wsSend(obj){
-  if(_ws && _wsReady && _ws.readyState===1){
-    _ws.send(JSON.stringify(obj));
-  }
+// -- POSITIONS - 60fps WebSocket publish --
+function _setupPositions(){
+  _posCh = _ably.channels.get('apex:positions');
+
+  // Subscribe to all player positions
+  _posCh.subscribe('pos', function(msg){
+    var p = msg.data;
+    if(!p || !p.id || p.id === myId || !scene) return;
+    var id = p.id;
+
+    if(!remotes[id]){
+      // New player - spawn car
+      var mesh = buildCar(p.color||'#ff3a5c');
+      mesh.position.set(p.x||0, .4, p.z||0);
+      mesh.rotation.y = p.angle||0;
+      var lbl = makeLabel(p.name||'Driver', p.color||'#ff3a5c');
+      lbl.position.set(0,2.4,0); mesh.add(lbl);
+      scene.add(mesh);
+      remotes[id] = {
+        mesh:mesh, color:p.color||'#ff3a5c', name:p.name||'Driver',
+        lap:1, cp:0, tx:p.x||0, tz:p.z||0, ta:p.angle||0,
+        vx:0, vz:0, lastUp:Date.now(), _rawData:p
+      };
+      addSysMsg((p.name||'Driver')+' joined the race!');
+    } else {
+      var r = remotes[id];
+      var dt = Math.max(0.01, (Date.now()-r.lastUp)/1000);
+      r.vx = (p.x - r.tx)/dt;
+      r.vz = (p.z - r.tz)/dt;
+      r.tx = p.x||0; r.tz = p.z||0; r.ta = p.angle||0;
+      r.lap = p.lap||1; r.cp = p.cp||0;
+      r.lastUp = Date.now(); r._rawData = p;
+    }
+    updateLBFromRemotes();
+  });
+
+  // Presence - join/leave
+  _posCh.presence.subscribe('enter', function(msg){
+    // handled by first pos message
+  });
+  _posCh.presence.subscribe('leave', function(msg){
+    var id = msg.clientId;
+    if(remotes[id]){
+      addSysMsg((remotes[id].name||'Driver')+' left the race.');
+      if(scene) scene.remove(remotes[id].mesh);
+      delete remotes[id];
+      updateLBFromRemotes();
+    }
+  });
+
+  // Enter presence
+  _posCh.presence.enter({name:playerName, color:playerColor});
 }
 
-function _handlePos(d){
-  if(!scene) return;
-  if(!remotes[d.id]){
-    var mesh=buildCar(d.color||'#ff3a5c');
-    mesh.position.set(d.x||0,.4,d.z||0);
-    mesh.rotation.y=d.angle||0;
-    var lbl=makeLabel(d.name||'Driver',d.color||'#ff3a5c');
-    lbl.position.set(0,2.4,0); mesh.add(lbl);
-    scene.add(mesh);
-    remotes[d.id]={
-      mesh:mesh,color:d.color||'#ff3a5c',name:d.name||'Driver',
-      lap:1,cp:0,
-      tx:d.x||0,tz:d.z||0,ta:d.angle||0,
-      vx:0,vz:0,lastUp:Date.now(),_rawData:d
-    };
-    addSysMsg((d.name||'Driver')+' joined!');
-  } else {
-    var r=remotes[d.id];
-    var dt=Math.max(0.016,(Date.now()-r.lastUp)/1000);
-    r.vx=(d.x-r.tx)/dt; r.vz=(d.z-r.tz)/dt;
-    r.tx=d.x||0; r.tz=d.z||0; r.ta=d.angle||0;
-    r.lap=d.lap||1; r.cp=d.cp||0;
-    r.lastUp=Date.now(); r._rawData=d;
+// -- CHAT --
+function _setupChat(){
+  _chatCh = _ably.channels.get('apex:chat', {
+    params: {rewind: '2m'} // get last 2 min of chat history on join
+  });
+
+  _chatCh.subscribe('msg', function(msg){
+    var m = msg.data;
+    if(!m || m.id === myId) return;
+    addChatMessage(m, false);
+  });
+}
+
+// -- ADMIN / BAN --
+function _setupAdmin(){
+  _adminCh = _ably.channels.get('apex:admin');
+  _adminCh.subscribe('cmd', function(msg){
+    var cmd = msg.data;
+    if(!cmd) return;
+    if(cmd.type==='ban' && cmd.target===playerName) doBanKick(cmd.reason, cmd.by);
+    if(cmd.type==='speed' && cmd.by!==playerName){
+      carSpdMS = cmd.kmh/3.6; carSpd = carSpdMS/277.8;
+      addSysMsg('Speed set to '+cmd.kmh+' km/h');
+    }
+  });
+}
+
+// -- WRITE POSITION (called 60fps from syncFB) --
+function fbWrite(d){
+  if(!_posCh) return;
+  d.id = myId;
+  _posCh.publish('pos', d);
+}
+
+// -- SEND CHAT --
+function _sendChatAbly(msg){
+  if(!_chatCh) return;
+  _chatCh.publish('msg', msg);
+}
+
+// -- ADMIN COMMAND --
+function _writeAdminCmd(cmd){
+  if(_adminCh) _adminCh.publish('cmd', cmd);
+}
+
+// -- DISCONNECT --
+function fbDel(){
+  if(_posCh){
+    try{ _posCh.presence.leave(); }catch(e){}
   }
-  // update leaderboard
-  var lb=[{id:myId,name:playerName,color:playerColor,lap:lap,cp:cpTotal}];
+  stopPoll();
+}
+
+function clearAllRemotes(){
+  Object.keys(remotes).forEach(function(id){
+    if(scene) scene.remove(remotes[id].mesh);
+    delete remotes[id];
+  });
+}
+
+function stopPoll(){
+  if(_posCh){ try{_posCh.unsubscribe();}catch(e){} _posCh=null; }
+  if(_chatCh){ try{_chatCh.unsubscribe();}catch(e){} _chatCh=null; }
+  if(_adminCh){ try{_adminCh.unsubscribe();}catch(e){} _adminCh=null; }
+  if(_ably){ try{_ably.close();}catch(e){} _ably=null; }
+}
+
+function updateLBFromRemotes(){
+  var lb = [{id:myId,name:playerName,color:playerColor,lap:lap,cp:cpTotal}];
   Object.keys(remotes).forEach(function(id){
     var r=remotes[id];
     lb.push({id:id,name:r.name,color:r.color,lap:r.lap||1,cp:r.cp||0});
   });
   renderLB(lb);
 }
-
-function _handleWsChat(d){
-  if(!d.ts||d.ts<=lastChatTs) return;
-  lastChatTs=d.ts;
-  addChatMessage({n:d.name,c:d.color,t:d.text,ts:d.ts,id:d.id},false);
-}
-
-function _handleJoin(d){
-  if(remotes[d.id]) return;
-  addSysMsg((d.name||'Driver')+' joined the race!');
-}
-
-function _handleLeave(d){
-  if(remotes[d.id]){
-    addSysMsg((remotes[d.id].name||'Driver')+' left.');
-    if(scene) scene.remove(remotes[d.id].mesh);
-    delete remotes[d.id];
-  }
-}
-
-// -- Firebase only for ban/admin (persistent) --
-function _openAdminStream(){
-  if(_adminStream){ try{_adminStream.close();}catch(e){} _adminStream=null; }
-  try{
-    _adminStream=new EventSource(FB+'/apexdrift/admin.json');
-    _adminStream.addEventListener('put',function(e){
-      try{
-        var ev=JSON.parse(e.data);
-        if(ev.path==='/'&&ev.data){
-          Object.keys(ev.data).forEach(function(k){ var cmd=ev.data[k]; if(cmd&&cmd.ts) lastAdminTs=Math.max(lastAdminTs,cmd.ts); });
-          return;
-        }
-        var cmd=ev.data;
-        if(!cmd||!cmd.ts||cmd.ts<=lastAdminTs) return;
-        lastAdminTs=cmd.ts;
-        if(cmd.type==='ban'&&cmd.target===playerName) doBanKick(cmd.reason,cmd.by);
-        if(cmd.type==='speed'&&cmd.by!==playerName){carSpdMS=cmd.kmh/3.6;carSpd=carSpdMS/277.8;}
-      }catch(x){}
-    });
-    _adminStream.onerror=function(){ setTimeout(function(){if(isMP)_openAdminStream();},1000); };
-  }catch(e){}
-}
-
-// -- Disconnect detection: heartbeat every 3s, remove stale after 6s --
-var _heartbeatTmr=null;
-function _startHeartbeat(){
-  _heartbeatTmr=setInterval(function(){
-    _wsSend({type:'heartbeat',id:myId,ts:Date.now()});
-    // Remove remotes not seen in 6s (disconnected without leave msg)
-    var now=Date.now();
-    Object.keys(remotes).forEach(function(id){
-      if(now-remotes[id].lastUp>6000){
-        addSysMsg((remotes[id].name||'Driver')+' disconnected.');
-        if(scene) scene.remove(remotes[id].mesh);
-        delete remotes[id];
-      }
-    });
-  },3000);
-}
-
-// -- Main start/stop --
-function startSSE(){
-  stopPoll();
-  myId=myId||(Math.random().toString(36).slice(2,10));
-  _openWS();
-  _openAdminStream();
-  _startHeartbeat();
-  // Register in Firebase so others can see us on join
-  fbWrite({x:0,y:.4,z:0,angle:0,name:playerName,color:playerColor,t:Date.now()});
-  // Window close = send leave
-  window.addEventListener('beforeunload',function(){
-    _wsSend({type:'leave',id:myId,name:playerName});
-    fbDel();
-  });
-}
-
-function stopPoll(){
-  clearInterval(pollTmr);clearInterval(chatPollTmr);clearInterval(adminPollTmr);
-  clearInterval(_heartbeatTmr); clearTimeout(_wsReconnTimer);
-  clearInterval(_chatFallbackTmr);
-  if(_ws){try{_ws.close();}catch(e){}_ws=null;}
-  if(_adminStream){try{_adminStream.close();}catch(e){}_adminStream=null;}
-}
-
-// -- Firebase write (only for position persistence + ban) --
-var _writing=false,_pendingWrite=null;
-function fbWrite(d){
-  _pendingWrite=d; if(_writing)return; _writing=true; _flush();
-}
-function _flush(){
-  if(!_pendingWrite){_writing=false;return;}
-  var d=_pendingWrite; _pendingWrite=null;
-  fetch(FB+'/apexdrift/players/'+myId+'.json',{
-    method:'PUT',headers:{'Content-Type':'application/json'},
-    keepalive:true,body:JSON.stringify(d)
-  }).then(function(){_flush();}).catch(function(){_writing=false;});
-}
-function fbDel(){
-  fetch(FB+'/apexdrift/players/'+myId+'.json',{method:'DELETE',keepalive:true}).catch(function(){});
-  try{navigator.sendBeacon(FB+'/apexdrift/players/'+myId+'.json','null');}catch(e){}
-}
-
-function clearAllRemotes(){
-  Object.keys(remotes).forEach(function(id){if(scene)scene.remove(remotes[id].mesh);delete remotes[id];});
-}
-
-// -- handleRemotes kept for Firebase fallback on join --
-function handleRemotes(data){
-  if(!scene||!data)return;
-}
-
-// =============================================
-// DEVICE DETECTION + MENU
-// =============================================
-var devType='laptop', viewMode='3p';
-var transmission='auto', engineType='petrol';
-
-function doAutoDetect(){
-  var ua=navigator.userAgent.toLowerCase();
-  var touch=navigator.maxTouchPoints>1;
-  var w=window.innerWidth,h=window.innerHeight;
-  var isIpad=/ipad/.test(ua)||(/macintosh/.test(ua)&&touch)||(touch&&Math.min(w,h)>=768);
-  var isPhone=/iphone/.test(ua)||(touch&&!isIpad);
-  var det=isIpad?'ipad':isPhone?'phone':'laptop';
-  var names={laptop:'Laptop / Desktop',ipad:'iPad',phone:'iPhone'};
-  var el=document.getElementById('dp-detected');
-  if(el) el.textContent='Detected: '+names[det];
-  ['dpL','dpI','dpP'].forEach(function(id){
-    var b=document.getElementById(id);
-    if(b){b.style.borderColor='';b.style.boxShadow='';}
-  });
-  var map={laptop:'dpL',ipad:'dpI',phone:'dpP'};
-  var btn=document.getElementById(map[det]);
-  if(btn){btn.style.borderColor='var(--neon)';btn.style.boxShadow='0 0 22px rgba(0,255,231,.3)';}
-  return det;
-}
-
-function checkRot(){
-  if(devType!=='phone') return;
-  var portrait=window.innerHeight>window.innerWidth;
-  var msg=document.getElementById('rot');
-  if(msg) portrait?msg.classList.remove('off'):msg.classList.add('off');
-}
-
-function setDev(type){
-  devType=type;
-  document.getElementById('dp').classList.add('off');
-  document.getElementById('menu').classList.remove('off');
-  document.body.className='dev-'+type;
-  if(type==='phone'||type==='ipad'){
-    var tui=document.getElementById('tui');
-    if(tui) tui.style.display='block';
-    viewMode='3p';
-    document.getElementById('sl-cam-3p').classList.add('sl-on');
-    document.getElementById('sl-cam-1p').classList.remove('sl-on');
-  }
-  if(type==='phone'){
-    if(screen.orientation&&screen.orientation.lock){
-      screen.orientation.lock('landscape').catch(function(){});
-    }
-    checkRot();
-    window.addEventListener('resize',checkRot);
-  }
-}
-
-window.addEventListener('load', function(){
-  doAutoDetect();
-  // Check if we were in a game - restore and relaunch
-  try{
-    if(localStorage.getItem('apx_playing')==='1'){
-      var n  = localStorage.getItem('apx_name')  || 'Driver';
-      var col= localStorage.getItem('apx_color') || '#00ffe7';
-      var vm = localStorage.getItem('apx_view')  || '3p';
-      var eng= localStorage.getItem('apx_eng')   || 'petrol';
-      var trn= localStorage.getItem('apx_trns')  || 'auto';
-      var dev= localStorage.getItem('apx_dev')   || 'laptop';
-      var mp = localStorage.getItem('apx_mp')==='1';
-
-      // Restore settings
-      document.getElementById('iname').value = n;
-      pickedColor = col;
-      viewMode = vm; engineType = eng; transmission = trn; devType = dev;
-
-      // Highlight correct color swatch
-      document.querySelectorAll('.sw').forEach(function(sw){
-        sw.classList.toggle('on', sw.style.background===col||sw.style.backgroundColor===col);
-      });
-
-      // Set sliders
-      setSl('cam', vm); setSl('eng', eng); setSl('trns', trn);
-
-      // Apply device mode
-      document.body.className='dev-'+dev;
-      if(dev==='phone'||dev==='ipad'){
-        var tui=document.getElementById('tui');
-        if(tui) tui.style.display='block';
-      }
-
-      // Skip menu - go straight into game
-      document.getElementById('dp').classList.add('off');
-      document.getElementById('menu').classList.add('off');
-
-      // Show a quick "restoring..." flash then launch
-      var cdEl=document.getElementById('cd');
-      cdEl.className='show'; cdEl.textContent='BACK!';
-      setTimeout(function(){cdEl.className='';},800);
-
-      if(mp){
-        // Reconnect to multiplayer
-        isMP=true;
-        initAudio(); launch(true);
-      } else {
-        initAudio(); launch(false);
-      }
-      return;
-    }
-  }catch(e){}
-});
-
-// =============================================
-// PALETTE + MENU WIRING
-// =============================================
-var PALETTE=['#00ffe7','#ff3a5c','#ffc820','#a78bfa','#34d399','#f97316','#38bdf8','#fb923c'];
-var pickedColor=PALETTE[0];
-
-PALETTE.forEach(function(col,i){
-  var sw=document.createElement('div');
-  sw.className='sw'+(i===0?' on':'');
-  sw.style.background=col;
-  sw.onclick=function(){document.querySelectorAll('.sw').forEach(function(s){s.classList.remove('on');});sw.classList.add('on');pickedColor=col;};
-  document.getElementById('swatch').appendChild(sw);
-});
-
-function setSl(type,val){
-  if(type==='cam'){
-    viewMode=val;
-    document.getElementById('sl-cam-3p').classList.toggle('sl-on',val==='3p');
-    document.getElementById('sl-cam-1p').classList.toggle('sl-on',val==='1p');
-  }
-  if(type==='trns'){
-    transmission=val;
-    document.getElementById('sl-trns-auto').classList.toggle('sl-on',val==='auto');
-    document.getElementById('sl-trns-manual').classList.toggle('sl-on',val==='manual');
-  }
-  if(type==='eng'){
-    engineType=val;
-    document.getElementById('sl-eng-petrol').classList.toggle('sl-on',val==='petrol');
-    document.getElementById('sl-eng-electric').classList.toggle('sl-on',val==='electric');
-  }
-}
-
-// camera controlled by sl-cam-3p / sl-cam-1p onclick in HTML
-document.getElementById('btn-solo').onclick=function(){initAudio();launch(false);};
-document.getElementById('iname').addEventListener('keydown',function(e){if(e.key==='Enter')launch(false);});
-document.getElementById('btn-mp').onclick=function(){
-  document.getElementById('menu').classList.add('off');
-  document.getElementById('mpm').classList.remove('off');
-  startMPConn();
-};
-
-function startMPConn(){
-  var st=document.getElementById('mpst');
-  var btn=document.getElementById('btn-conn');
-  // No test needed - Firebase rules are open, just go straight in
-  isMP=true;
-  st.className='ok';
-  st.textContent='Ready! Hit JOIN RACE to play online.';
-  btn.disabled=false;
-}
-document.getElementById('btn-cxl').onclick=function(){isMP=false;document.getElementById('mpm').classList.add('off');document.getElementById('menu').classList.remove('off');};
-document.getElementById('btn-conn').onclick=function(){initAudio();launch(true);};
-document.getElementById('btn-res').onclick=function(){paused=false;document.getElementById('paus').classList.add('off');var pb=document.getElementById('pause-btn');if(pb)pb.innerHTML='&#9646;&#9646;';};
-document.getElementById('btn-quit').onclick=function(){
-  try{localStorage.removeItem('apx_playing');}catch(e){}
-  location.reload();
-};
-document.getElementById('btn-again').onclick=function(){
-  try{localStorage.removeItem('apx_playing');}catch(e){}
-  location.reload();
-};
-
-function togglePause(){
-  if(!gameOn||done) return;
-  paused=!paused;
-  document.getElementById('paus').classList.toggle('off',!paused);
-  var pb=document.getElementById('pause-btn');
-  if(pb) pb.innerHTML=paused?'&#9654;':'&#9646;&#9646;';
-}
-
 
 
 // =============================================
@@ -1328,42 +1119,8 @@ function drawMM(){
 // =============================================
 // MULTIPLAYER
 // =============================================
-function setupMP(){
-  myId=Math.random().toString(36).slice(2,10);
-  joinedAt=Date.now();
-  lastMoveTime=Date.now();
-  document.addEventListener('visibilitychange',function(){
-    if(document.visibilityState==='hidden'){ _wsSend({type:'leave',id:myId,name:playerName}); fbDel(); stopPoll(); }
-    else if(isMP){ startSSE(); }
-  });
-  startSSE();
-  startSessionTimer();
-  cleanOldChat();
-  document.getElementById('chat-toggle').style.display='flex';
-  addSysMsg('Joined! WebSocket connected. Chat and race!');
-}
-function handleRemotes(data){
-  if(!scene)return;
-  var lb=[{id:myId,name:playerName,color:playerColor,lap:lap,cp:cpTotal}];
-  Object.keys(data).forEach(function(id){
-    var p=data[id];
-    if(id===myId||!p||typeof p.x==='undefined')return;
-    if(!remotes[id]){
-      var mesh=buildCar(p.color||'#ff3a5c');mesh.position.set(p.x,.4,p.z);mesh.rotation.y=p.angle||0;
-      var lbl=makeLabel(p.name||'Driver',p.color||'#ff3a5c');lbl.position.set(0,2.4,0);mesh.add(lbl);
-      scene.add(mesh);remotes[id]={mesh:mesh,color:p.color||'#ff3a5c',name:p.name||'Driver',lap:1,cp:0,tx:p.x,tz:p.z,ta:p.angle||0,vx:0,vz:0,lastUp:Date.now(),srvT:p.t||Date.now(),_rawData:p};
-      addSysMsg((p.name||'Driver')+' joined the race!');
-    }else{
-      var r=remotes[id];
-      var dt=Math.max(.01,(p.t&&r.srvT)?(p.t-r.srvT)/1000:(Date.now()-r.lastUp)/1000);
-      r.vx=(p.x-r.tx)/dt;r.vz=(p.z-r.tz)/dt;r.tx=p.x;r.tz=p.z;r.ta=p.angle||0;r.lap=p.lap||1;r.cp=p.cp||0;r.lastUp=Date.now();r.srvT=p.t||Date.now();r._rawData=p;
-    }
-    lb.push({id:id,name:p.name||'Driver',color:p.color||'#888',lap:p.lap||1,cp:p.cp||0});
-  });
-  Object.keys(remotes).forEach(function(id){if(!data[id]){addSysMsg((remotes[id].name||'A driver')+' left the race.');scene.remove(remotes[id].mesh);delete remotes[id];}});
-  renderLB(lb);
-  if(isMP) checkPlayerExpiry(data);
-}
+// setupMP replaced by startSSE
+function handleRemotes(data){ /* handled by Ably */ }
 function updateRemotes(){
   if(!isMP)return;
   var now=Date.now();
@@ -1541,7 +1298,7 @@ function checkPlayerExpiry(data){
     if(!p || id === myId) return;
     if(p.joinedAt && (now - p.joinedAt) > SESSION_LIMIT_MS + 30000){
       // They've been here >5.5min and haven't cleaned up - remove them
-      fetch(FB+'/apexdrift/players/'+id+'.json',{method:'DELETE'}).catch(function(){});
+      // cleaned up via Ably presence;
     }
   });
 }
@@ -1734,6 +1491,72 @@ function playCountdownBeep(isGo){
     osc.connect(g); g.connect(audioCtx.destination);
     osc.start(); osc.stop(audioCtx.currentTime+(isGo?0.4:0.15));
   }catch(e){}
+}
+
+
+function startMPConn(){
+  var st=document.getElementById('mpst');
+  var btn=document.getElementById('btn-conn');
+  btn.disabled=true; st.className=''; st.textContent='Connecting to Ably...';
+  if(typeof Ably==='undefined'){
+    st.className='err'; st.textContent='Ably SDK failed to load. Check internet connection.';
+    btn.disabled=false; return;
+  }
+  // Quick test connection
+  var test = new Ably.Realtime({key:ABLY_KEY, clientId:'test_'+Date.now()});
+  test.connection.on('connected', function(){
+    test.close();
+    isMP=true;
+    st.className='ok'; st.textContent='Connected! Ready to race.';
+    btn.disabled=false;
+  });
+  test.connection.on('failed', function(){
+    test.close();
+    st.className='err'; st.textContent='Connection failed. Check internet.';
+    btn.disabled=false;
+  });
+  setTimeout(function(){
+    if(btn.disabled){
+      try{test.close();}catch(e){}
+      st.className='err'; st.textContent='Timeout. Try again.';
+      btn.disabled=false;
+    }
+  }, 8000);
+}
+
+// =============================================
+// SETUP MULTIPLAYER
+// =============================================
+function setupMP(){
+  myId = Math.random().toString(36).slice(2,10);
+  joinedAt = Date.now();
+  lastMoveTime = Date.now();
+  lastMoveX = carPos ? carPos.x : 0;
+  lastMoveZ = carPos ? carPos.z : 0;
+
+  // Disconnect cleanly on tab close
+  window.addEventListener('beforeunload', function(){ fbDel(); });
+  window.addEventListener('pagehide', function(){ fbDel(); });
+
+  // Reconnect when tab becomes visible again
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'hidden'){ fbDel(); }
+    else if(isMP){ startSSE(); }
+  });
+
+  // Connect to Ably
+  startSSE();
+
+  // AFK kick timer
+  startSessionTimer();
+
+  // Show MP UI
+  var dot = document.getElementById('mpdot');
+  if(dot) dot.style.display = 'block';
+  var ct = document.getElementById('chat-toggle');
+  if(ct) ct.style.display = 'flex';
+
+  addSysMsg('Connected! Race on - type to chat.');
 }
 
 
