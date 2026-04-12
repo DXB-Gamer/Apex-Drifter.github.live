@@ -278,7 +278,7 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
+<canvas id="c" tabindex="0"></canvas>
 <div id="vig"></div>
 <div id="hf"></div>
 <div id="gf"></div>
@@ -350,8 +350,8 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
       </div>
     </div>
     <div class="race-btns">
-      <button class="race-btn" id="btn-solo">&#x25B6; SOLO</button>
-      <button class="race-btn race-btn-mp" id="btn-mp">&#x26A1; ONLINE <span class="badge">MP</span></button>
+      <button class="race-btn" id="btn-solo" onclick="initAudio();launch(false);">&#x25B6; SOLO</button>
+      <button class="race-btn race-btn-mp" id="btn-mp" onclick="document.getElementById('menu').classList.add('off');document.getElementById('mpm').classList.remove('off');startMPConn();">&#x26A1; ONLINE <span class="badge">MP</span></button>
     </div>
     <div class="hint" id="ctrl-hint">W=Gas S=Brake A/D=Steer Space=Drift ESC=Pause</div>
   </div>
@@ -363,8 +363,8 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
     <h2>Multiplayer</h2>
     <div id="mpst">Connecting to server...</div>
     <div class="mrow">
-      <button id="btn-conn" disabled>JOIN RACE</button>
-      <button id="btn-cxl">CANCEL</button>
+      <button id="btn-conn" disabled onclick="initAudio();launch(true);">JOIN RACE</button>
+      <button id="btn-cxl" onclick="document.getElementById('mpm').classList.add('off');document.getElementById('menu').classList.remove('off');">CANCEL</button>
     </div>
   </div>
 </div>
@@ -372,8 +372,8 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
 <!-- PAUSE -->
 <div class="screen off" id="paus">
   <h2>PAUSED</h2>
-  <button id="btn-res">RESUME</button>
-  <button id="btn-quit">QUIT TO MENU</button>
+  <button id="btn-res" onclick="paused=false;document.getElementById('paus').classList.add('off');">RESUME</button>
+  <button id="btn-quit" onclick="try{localStorage.removeItem('apx_playing');}catch(e){}location.reload();">QUIT TO MENU</button>
 </div>
 
 <!-- HUD -->
@@ -471,6 +471,10 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
   <span id="chat-badge"></span>
 </button>
 <div id="chat-box">
+  <div id="chat-header-bar" style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px 4px;border-bottom:1px solid rgba(255,255,255,.08);font-size:10px;letter-spacing:3px;color:rgba(255,255,255,.35)">
+    RACE CHAT
+    <button id="chat-snd-btn" onclick="chatSoundEnabled=!chatSoundEnabled;this.textContent=chatSoundEnabled?String.fromCharCode(128276):String.fromCharCode(128277)" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0;line-height:1">&#128276;</button>
+  </div>
   <div id="chat-msgs"></div>
   <div id="chat-input-row">
     <input id="chat-in" type="text" placeholder="Say something..." maxlength="80" autocomplete="off"/>
@@ -479,9 +483,9 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
 </div>
 
 <!-- FINISH (single player only) -->
-<div class="screen" id="fin">
+<div class="screen off" id="fin">
   <h1>FINISH!</h1><p id="finsub"></p>
-  <button id="btn-again">RACE AGAIN</button>
+  <button id="btn-again" onclick="try{localStorage.removeItem('apx_playing');}catch(e){}location.reload();">RACE AGAIN</button>
 </div>
 
 <!-- KICK / TIMEOUT OVERLAY -->
@@ -502,10 +506,80 @@ input[type=text]::placeholder{color:rgba(255,255,255,.18)}
 <script src="https://cdn.ably.com/lib/ably.min-2.js"></script>
 <script>
 // ---- verify THREE loaded ----
+window.onerror = function(msg,src,line,col,err){
+  var d=document.createElement('div');
+  d.style.cssText='position:fixed;top:0;left:0;right:0;background:#ff3a5c;color:#fff;padding:8px 12px;font-family:monospace;font-size:12px;z-index:9999;';
+  d.textContent='JS ERROR: '+msg+' (line '+line+')';
+  document.body.appendChild(d);
+};
 if(typeof THREE === 'undefined'){
   document.body.innerHTML='<div style="color:#00ffe7;font-family:monospace;padding:40px;font-size:18px">ERROR: THREE.js failed to load.<br>Check your internet connection.</div>';
   throw new Error('THREE not loaded');
 }
+
+var devType='laptop', viewMode='3p', transmission='auto', engineType='petrol', pickedColor='#00ffe7';
+var PALETTE=['#00ffe7','#ff3a5c','#ffc820','#a78bfa','#34d399','#f97316','#38bdf8','#fb923c'];
+
+function doAutoDetect(){
+  var ua=navigator.userAgent.toLowerCase(),touch=navigator.maxTouchPoints>1;
+  var isIpad=/ipad/.test(ua)||(/macintosh/.test(ua)&&touch)||(touch&&Math.min(window.innerWidth,window.innerHeight)>=768);
+  var isPhone=/iphone/.test(ua)||(touch&&!isIpad);
+  var det=isIpad?'ipad':isPhone?'phone':'laptop';
+  ['dpL','dpI','dpP'].forEach(function(id){var b=document.getElementById(id);if(b){b.style.borderColor='';b.style.boxShadow='';}});
+  var map={laptop:'dpL',ipad:'dpI',phone:'dpP'};
+  var btn=document.getElementById(map[det]);
+  if(btn){btn.style.borderColor='var(--neon)';btn.style.boxShadow='0 0 22px rgba(0,255,231,.3)';}
+}
+
+function checkRot(){
+  if(devType!=='phone')return;
+  var msg=document.getElementById('rot');
+  if(msg) window.innerHeight>window.innerWidth?msg.classList.remove('off'):msg.classList.add('off');
+}
+
+function setDev(type){
+  devType=type;
+  document.getElementById('dp').classList.add('off');
+  document.getElementById('menu').classList.remove('off');
+  document.body.className='dev-'+type;
+  if(type==='phone'||type==='ipad'){
+    var tui=document.getElementById('tui');
+    if(tui)tui.style.display='block';
+    viewMode='3p'; setSl('cam','3p');
+  }
+  if(type==='phone'){
+    if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(function(){});
+    checkRot();
+    window.addEventListener('resize',checkRot);
+  }
+}
+
+function setSl(type,val){
+  if(type==='cam'){
+    viewMode=val;
+    document.getElementById('sl-cam-3p').classList.toggle('sl-on',val==='3p');
+    document.getElementById('sl-cam-1p').classList.toggle('sl-on',val==='1p');
+  }
+  if(type==='trns'){
+    transmission=val;
+    document.getElementById('sl-trns-auto').classList.toggle('sl-on',val==='auto');
+    document.getElementById('sl-trns-manual').classList.toggle('sl-on',val==='manual');
+  }
+  if(type==='eng'){
+    engineType=val;
+    document.getElementById('sl-eng-petrol').classList.toggle('sl-on',val==='petrol');
+    document.getElementById('sl-eng-electric').classList.toggle('sl-on',val==='electric');
+  }
+}
+
+function togglePause(){
+  if(!gameOn||done)return;
+  paused=!paused;
+  document.getElementById('paus').classList.toggle('off',!paused);
+  var pb=document.getElementById('pause-btn');
+  if(pb)pb.innerHTML=paused?'&#9654;':'&#9646;&#9646;';
+}
+
 
 // =============================================
 // FIREBASE REST
@@ -513,158 +587,147 @@ if(typeof THREE === 'undefined'){
 // =============================================
 // ABLY - Full realtime (positions, chat, admin)
 // =============================================
-var ABLY_KEY = 'K6PhVg.SZ6KuA:PMsXZs0OFodwzQRqTzvkpdyE52kDoCHfY2tymhetLew';
-var isMP = false, myId = '', lastSync = 0;
-var remotes = {};
-var _ably = null, _posCh = null, _chatCh = null, _adminCh = null;
+// ONE connection, THREE channels = instant connect
+var ABLY_KEY  = 'K6PhVg.SZ6KuA:PMsXZs0OFodwzQRqTzvkpdyE52kDoCHfY2tymhetLew';  // positions + admin (pub/sub 1)
+var ABLY_KEY2 = 'poiguA.rXsLiw:A8Ra_ql0RCfGJbIP694DqBcsVl6CH0TKwiEkFRTtNPA'; // positions backup (pub/sub 2)
+var CHAT_KEY  = 'pCcNMQ.AjLAFg:NesraLOSxcjQXSOBux95K1n07W_Ep2CLDvYUgmxqEi4'; // chat (ably chat)
 
-// -- Connect --
-function startSSE(){
-  stopPoll();
-  if(typeof Ably === 'undefined'){ console.error('Ably SDK not loaded'); return; }
+var _ablyPos=null, _ablyPos2=null, _ablyChat=null;
+var _posCh=null, _chatCh=null, _adminCh=null;
+var isMP=false, myId='', lastSync=0;
+var remotes={};
 
-  myId = myId || Math.random().toString(36).slice(2,10);
+// -- WRITE your position --
 
-  _ably = new Ably.Realtime({
-    key: ABLY_KEY,
-    clientId: myId,
-    echoMessages: false,
-    // Keep connection alive
-    disconnectedRetryTimeout: 1000,
-    suspendedRetryTimeout: 2000
-  });
 
-  _ably.connection.on('connected', function(){
-    addSysMsg('Connected to race server!');
-    _setupPositions();
-    _setupChat();
-    _setupAdmin();
-  });
 
-  _ably.connection.on('failed', function(){
-    addSysMsg('Connection failed - retrying...');
-  });
-}
 
-// -- POSITIONS - 60fps WebSocket publish --
-function _setupPositions(){
-  _posCh = _ably.channels.get('apex:positions');
-
-  // Subscribe to all player positions
-  _posCh.subscribe('pos', function(msg){
-    var p = msg.data;
-    if(!p || !p.id || p.id === myId || !scene) return;
-    var id = p.id;
-
-    if(!remotes[id]){
-      // New player - spawn car
-      var mesh = buildCar(p.color||'#ff3a5c');
-      mesh.position.set(p.x||0, .4, p.z||0);
-      mesh.rotation.y = p.angle||0;
-      var lbl = makeLabel(p.name||'Driver', p.color||'#ff3a5c');
-      lbl.position.set(0,2.4,0); mesh.add(lbl);
-      scene.add(mesh);
-      remotes[id] = {
-        mesh:mesh, color:p.color||'#ff3a5c', name:p.name||'Driver',
-        lap:1, cp:0, tx:p.x||0, tz:p.z||0, ta:p.angle||0,
-        vx:0, vz:0, lastUp:Date.now(), _rawData:p
-      };
-      addSysMsg((p.name||'Driver')+' joined the race!');
-    } else {
-      var r = remotes[id];
-      var dt = Math.max(0.01, (Date.now()-r.lastUp)/1000);
-      r.vx = (p.x - r.tx)/dt;
-      r.vz = (p.z - r.tz)/dt;
-      r.tx = p.x||0; r.tz = p.z||0; r.ta = p.angle||0;
-      r.lap = p.lap||1; r.cp = p.cp||0;
-      r.lastUp = Date.now(); r._rawData = p;
-    }
-    updateLBFromRemotes();
-  });
-
-  // Presence - join/leave
-  _posCh.presence.subscribe('enter', function(msg){
-    // handled by first pos message
-  });
-  _posCh.presence.subscribe('leave', function(msg){
-    var id = msg.clientId;
-    if(remotes[id]){
-      addSysMsg((remotes[id].name||'Driver')+' left the race.');
-      if(scene) scene.remove(remotes[id].mesh);
-      delete remotes[id];
-      updateLBFromRemotes();
-    }
-  });
-
-  // Enter presence
-  _posCh.presence.enter({name:playerName, color:playerColor});
-}
-
-// -- CHAT --
-function _setupChat(){
-  _chatCh = _ably.channels.get('apex:chat', {
-    params: {rewind: '2m'} // get last 2 min of chat history on join
-  });
-
-  _chatCh.subscribe('msg', function(msg){
-    var m = msg.data;
-    if(!m || m.id === myId) return;
-    addChatMessage(m, false);
-  });
-}
-
-// -- ADMIN / BAN --
-function _setupAdmin(){
-  _adminCh = _ably.channels.get('apex:admin');
-  _adminCh.subscribe('cmd', function(msg){
-    var cmd = msg.data;
-    if(!cmd) return;
-    if(cmd.type==='ban' && cmd.target===playerName) doBanKick(cmd.reason, cmd.by);
-    if(cmd.type==='speed' && cmd.by!==playerName){
-      carSpdMS = cmd.kmh/3.6; carSpd = carSpdMS/277.8;
-      addSysMsg('Speed set to '+cmd.kmh+' km/h');
-    }
-  });
-}
-
-// -- WRITE POSITION (called 60fps from syncFB) --
-function fbWrite(d){
-  if(!_posCh) return;
-  d.id = myId;
-  _posCh.publish('pos', d);
-}
-
-// -- SEND CHAT --
-function _sendChatAbly(msg){
-  if(!_chatCh) return;
-  _chatCh.publish('msg', msg);
-}
-
-// -- ADMIN COMMAND --
+function _sendChatAbly(msg){ if(_chatCh) _chatCh.publish('msg',msg); }
 function _writeAdminCmd(cmd){
   if(_adminCh) _adminCh.publish('cmd', cmd);
 }
 
-// -- DISCONNECT --
-function fbDel(){
-  if(_posCh){
-    try{ _posCh.presence.leave(); }catch(e){}
-  }
+// -- CONNECT --
+function startSSE(){
   stopPoll();
+  if(typeof Ably==='undefined'){ addSysMsg('Ably SDK missing!'); return; }
+  if(!myId) myId = Math.random().toString(36).slice(2,10);
+
+  // -- POS 1: publish YOUR position + receive others + admin --
+  _ablyPos = new Ably.Realtime({ key:ABLY_KEY, clientId:myId, echoMessages:false });
+  _ablyPos.connection.on('connected', function(){
+    _posCh = _ablyPos.channels.get('apex-race');
+
+    // Receive other cars
+    _posCh.subscribe('pos', function(msg){
+      var p=msg.data;
+      if(!p||p.id===myId||!scene) return;
+      var id=p.id;
+      if(!remotes[id]){
+        var mesh=buildCar(p.c||'#ff3a5c');
+        mesh.position.set(p.x||0,.4,p.z||0);
+        mesh.rotation.y=p.a||0;
+        var lbl=makeLabel(p.n||'?',p.c||'#ff3a5c');
+        lbl.position.set(0,2.4,0); mesh.add(lbl); scene.add(mesh);
+        remotes[id]={mesh:mesh,color:p.c||'#ff3a5c',name:p.n||'?',
+          lap:1,cp:0,tx:p.x||0,tz:p.z||0,ta:p.a||0,
+          pvx:p.vx||0,pvz:p.vz||0,lastUp:Date.now()};
+        addSysMsg((p.n||'Someone')+' joined!');
+        updateLBFromRemotes();
+      } else {
+        var r=remotes[id];
+        r.tx=p.x||0; r.tz=p.z||0; r.ta=p.a||0;
+        r.pvx=p.vx||0; r.pvz=p.vz||0;
+        r.lap=p.lap||1; r.cp=p.cp||0;
+        r.lastUp=Date.now();
+      }
+    });
+
+    // Presence
+    _posCh.presence.subscribe('leave', function(msg){
+      var id=msg.clientId;
+      if(remotes[id]){
+        addSysMsg((remotes[id].name||'?')+' left.');
+        if(scene) scene.remove(remotes[id].mesh);
+        delete remotes[id]; updateLBFromRemotes();
+      }
+    });
+    _posCh.presence.enter({n:(isOwner()?'OWNER':playerName), c:playerColor});
+    _posCh.presence.get(function(err,members){
+      if(err||!members) return;
+      members.forEach(function(m){
+        if(m.clientId===myId||remotes[m.clientId]||!scene) return;
+        var d=m.data||{};
+        var mesh=buildCar(d.c||'#888');
+        mesh.position.set(0,.4,0);
+        var lbl=makeLabel(d.n||'?',d.c||'#888');
+        lbl.position.set(0,2.4,0); mesh.add(lbl); scene.add(mesh);
+        remotes[m.clientId]={mesh:mesh,color:d.c||'#888',name:d.n||'?',
+          lap:1,cp:0,tx:0,tz:0,ta:0,pvx:0,pvz:0,lastUp:Date.now()};
+        addSysMsg((d.n||'Someone')+' is already racing!');
+      });
+      updateLBFromRemotes();
+    });
+
+    // Admin on pos key
+    _adminCh = _ablyPos.channels.get('apex-admin');
+    _adminCh.subscribe('cmd', function(msg){
+      if(msg.clientId===myId) return;
+      var cmd=msg.data; if(!cmd) return;
+      if(cmd.type==='ban'&&cmd.target===playerName) doBanKick(cmd.reason,cmd.by);
+      if(cmd.type==='speed'&&cmd.by!==playerName){
+        carSpdMS=cmd.kmh/3.6; carSpd=carSpdMS/277.8;
+        addSysMsg('Speed: '+cmd.kmh+' km/h');
+      }
+    });
+
+    addSysMsg('Race server connected!');
+    lastSync=0; syncFB();
+  });
+  _ablyPos.connection.on('failed',       function(){ addSysMsg('Connection failed - please refresh.'); });
+
+  // -- POS 2: extra receive channel for redundancy --
+  _ablyPos2 = new Ably.Realtime({ key:ABLY_KEY2, clientId:myId+'b', echoMessages:false });
+  _ablyPos2.connection.on('connected', function(){
+    var ch2 = _ablyPos2.channels.get('apex-race');
+    ch2.subscribe('pos', function(msg){
+      var p=msg.data;
+      if(!p||p.id===myId||!scene) return;
+      var id=p.id;
+      if(remotes[id]){
+        // Update existing remote with latest data
+        var r=remotes[id];
+        r.tx=p.x||0; r.tz=p.z||0; r.ta=p.a||0;
+        r.pvx=p.vx||0; r.pvz=p.vz||0;
+        r.lap=p.lap||1; r.cp=p.cp||0;
+        r.lastUp=Date.now();
+      }
+    });
+  });
+
+  // -- CHAT: dedicated Ably Chat key --
+  _ablyChat = new Ably.Realtime({ key:CHAT_KEY, clientId:myId+'c', echoMessages:false });
+  _ablyChat.connection.on('connected', function(){
+    _chatCh = _ablyChat.channels.get('apex:chat');
+    _chatCh.subscribe('msg', function(msg){
+      var m=msg.data;
+      if(!m || m.id===myId) return;
+      addChatMessage(m, false);
+      playChatTing();
+    });
+    addSysMsg('Chat ready!');
+  });
+  _ablyChat.connection.on('failed', function(){ addSysMsg('Chat connection failed!'); });
 }
 
-function clearAllRemotes(){
-  Object.keys(remotes).forEach(function(id){
-    if(scene) scene.remove(remotes[id].mesh);
-    delete remotes[id];
-  });
-}
 
 function stopPoll(){
-  if(_posCh){ try{_posCh.unsubscribe();}catch(e){} _posCh=null; }
-  if(_chatCh){ try{_chatCh.unsubscribe();}catch(e){} _chatCh=null; }
-  if(_adminCh){ try{_adminCh.unsubscribe();}catch(e){} _adminCh=null; }
-  if(_ably){ try{_ably.close();}catch(e){} _ably=null; }
+  if(_posCh){try{_posCh.presence.leave();_posCh.unsubscribe();}catch(e){} _posCh=null;}
+  if(_chatCh){try{_chatCh.unsubscribe();}catch(e){} _chatCh=null;}
+  if(_adminCh){try{_adminCh.unsubscribe();}catch(e){} _adminCh=null;}
+  if(_ablyPos) {try{_ablyPos.close();}catch(e){}  _ablyPos=null;}
+  if(_ablyPos2){try{_ablyPos2.close();}catch(e){} _ablyPos2=null;}
+  if(_ablyChat){try{_ablyChat.close();}catch(e){} _ablyChat=null;}
 }
 
 function updateLBFromRemotes(){
@@ -774,9 +837,46 @@ function resolveWalls(){
     var ex=carPos.x-w.ax,ez=carPos.z-w.az,wdx=w.bx-w.ax,wdz=w.bz-w.az,wux=wdx/w.len,wuz=wdz/w.len;
     var t=ex*wux+ez*wuz;if(t<0||t>w.len)continue;
     var cpx=w.ax+wux*t,cpz=w.az+wuz*t,dx=carPos.x-cpx,dz=carPos.z-cpz,dist=Math.sqrt(dx*dx+dz*dz);
-    if(dist<CAR_R&&dist>.001){carPos.x+=dx/dist*(CAR_R-dist);carPos.z+=dz/dist*(CAR_R-dist);carSpdMS*=BNCE;carSpd=carSpdMS/277.8;hit=true;}
+    if(dist<CAR_R&&dist>.001){
+      // Push car out of wall
+      var nx=dx/dist, nz=dz/dist; // wall normal pointing away
+      carPos.x+=nx*(CAR_R-dist);
+      carPos.z+=nz*(CAR_R-dist);
+
+      // Reflect velocity off wall normal
+      // vel vector = speed in direction car is facing
+      var vx=Math.sin(velAngle)*carSpdMS;
+      var vz=Math.cos(velAngle)*carSpdMS;
+      // Dot product of vel with normal
+      var dot=vx*nx+vz*nz;
+      // Only bounce if moving INTO the wall
+      if(dot<0){
+        // Reflect: v' = v - 2*(v.n)*n
+        var restitution=0.35; // bounciness - 35% speed kept perpendicular
+        var friction=0.55;    // 55% parallel speed kept
+        // Decompose into normal and tangential components
+        var vnx=dot*nx, vnz=dot*nz;           // normal component
+        var vtx=vx-vnx, vtz=vz-vnz;           // tangential component
+        // Bounce: flip normal, keep some tangential
+        var newVx=(-vnx*restitution)+(vtx*friction);
+        var newVz=(-vnz*restitution)+(vtz*friction);
+        // New speed and angle from reflected velocity
+        var newSpd=Math.sqrt(newVx*newVx+newVz*newVz);
+        carSpdMS=newSpd;
+        carSpd=carSpdMS/277.8;
+        velAngle=Math.atan2(newVx,newVz);
+        // Spin car angle toward new vel direction
+        carAngle+=(velAngle-carAngle)*0.6;
+      }
+      hit=true;
+    }
   }
-  if(hit){var hf=document.getElementById('hf');hf.style.opacity='1';setTimeout(function(){hf.style.opacity='0';},80);playClunk();}
+  if(hit){
+    var hf=document.getElementById('hf');
+    hf.style.opacity='1';
+    setTimeout(function(){hf.style.opacity='0';},100);
+    playClunk();
+  }
 }
 function resolveCarCol(){
   if(!isMP)return;
@@ -802,9 +902,9 @@ function tickSmoke(){
 // =============================================
 // ENGINE - 6 GEARS, G6=1000KM/H
 // =============================================
-var GTOP_PETROL=[40,100,180,240,270,222.2]; // G6=800km/h
+var GTOP_PETROL=[40,100,170,230,260,278];   // G6=1000km/h
 var GACC_PETROL=[80,65,50,36,24,16];
-var GTOP_ELECTRIC=[100,180,260,222.2,222.2,222.2]; // electric G6=800km/h
+var GTOP_ELECTRIC=[80,150,220,255,275,278];        // electric G6=1000km/h
 var GACC_ELECTRIC=[160,120,88,60,38,24];
 var GTOP=GTOP_PETROL;
 var GACC=GACC_PETROL;
@@ -832,6 +932,10 @@ document.addEventListener('keydown',function(e){
   if(gameOn&&!done&&!paused&&transmission==='manual'){if(e.key==='ArrowUp')shiftGear(1);if(e.key==='ArrowDown')shiftGear(-1);}
 });
 document.addEventListener('keyup',function(e){keys[e.key]=false;});
+window.addEventListener('blur',function(){ 
+  // Clear all keys when window loses focus - prevents stuck keys
+  Object.keys(keys).forEach(function(k){ keys[k]=false; });
+});
 var mouseX=0;
 document.addEventListener('mousemove',function(e){if(gameOn&&!done&&!paused)mouseX+=e.movementX;});
 document.getElementById('c').addEventListener('click',function(){
@@ -927,7 +1031,7 @@ function aDiff(a,b){var d=a-b;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=M
 // LAUNCH
 // =============================================
 function launch(mp){
-  playerName=document.getElementById('iname').value.trim()||'Driver';
+  playerName=(document.getElementById('iname').value||'').trim().slice(0,20)||'Driver';
   playerColor=pickedColor;
   if(engineType==='electric'){ GTOP=GTOP_ELECTRIC; GACC=GACC_ELECTRIC; }
   else { GTOP=GTOP_PETROL; GACC=GACC_PETROL; }
@@ -955,9 +1059,18 @@ function launch(mp){
   var pb=document.getElementById('pause-btn');
   if(pb) pb.style.display='flex';
   document.getElementById('lap-val').textContent='1 / '+TOTAL_LAPS;
-  if(mp&&isMP){setupMP();document.getElementById('mpdot').style.display='block';}
+  if(mp){
+    isMP=true;
+    setupMP();
+    document.getElementById('mpdot').style.display='block';
+  }
   countdown(function(){gameOn=true;startTime=Date.now();});
   requestAnimationFrame(loop);
+  // Focus canvas so keyboard works immediately
+  setTimeout(function(){ 
+    var cv=document.getElementById('c');
+    if(cv) cv.focus();
+  }, 100);
 }
 function countdown(cb){
   var el=document.getElementById('cd');
@@ -965,7 +1078,7 @@ function countdown(cb){
   show('3');playCountdownBeep(false);
   setTimeout(function(){show('2');playCountdownBeep(false);},1000);
   setTimeout(function(){show('1');playCountdownBeep(false);},2000);
-  setTimeout(function(){show('GO!','go');playCountdownBeep(true);cb();},3000);
+  setTimeout(function(){show('GO!','go');playCountdownBeep(true);playFanfare();cb();},3000);
 }
 
 // =============================================
@@ -1122,29 +1235,60 @@ function drawMM(){
 // setupMP replaced by startSSE
 function handleRemotes(data){ /* handled by Ably */ }
 function updateRemotes(){
-  if(!isMP)return;
-  var now=Date.now();
+  if(!_posCh) return;
+  var now = Date.now();
   Object.keys(remotes).forEach(function(id){
-    var r=remotes[id];
-    if(now-r.lastUp>3000){scene.remove(r.mesh);delete remotes[id];return;}
-    var el=(now-r.lastUp)/1000;
-    r.mesh.position.x+=(r.tx+r.vx*el-r.mesh.position.x)*.5;
-    r.mesh.position.z+=(r.tz+r.vz*el-r.mesh.position.z)*.5;
-    r.mesh.position.y=.4;
-    r.mesh.rotation.y+=aDiff(r.ta,r.mesh.rotation.y)*.4;
+    var r = remotes[id]; if(!r.mesh) return;
+
+    // Dead reckoning: predict where car is NOW based on last known pos + velocity
+    var age = (now - r.lastUp) / 1000; // seconds since last update
+    var predX = r.tx + r.pvx * Math.min(age, 0.15); // cap prediction at 150ms
+    var predZ = r.tz + r.pvz * Math.min(age, 0.15);
+
+    // Smooth lerp toward predicted position - feels like 60fps even at 20fps updates
+    r.mesh.position.x += (predX - r.mesh.position.x) * 0.45;
+    r.mesh.position.z += (predZ - r.mesh.position.z) * 0.45;
+    r.mesh.position.y = 0.4;
+
+    // Smooth angle
+    var da = r.ta - r.mesh.rotation.y;
+    while(da > Math.PI) da -= Math.PI*2;
+    while(da < -Math.PI) da += Math.PI*2;
+    r.mesh.rotation.y += da * 0.25;
+
+    // Remove if no update for 6 seconds
+    if(now - r.lastUp > 6000){
+      addSysMsg((r.name||'Driver')+' disconnected.');
+      scene.remove(r.mesh); delete remotes[id]; updateLBFromRemotes();
+    }
   });
 }
-function syncFB(){
-  var now=Date.now(); if(now-lastSync<16)return; lastSync=now;
-  var d={type:'pos',id:myId,x:+carPos.x.toFixed(2),z:+carPos.z.toFixed(2),y:.4,angle:+carAngle.toFixed(3),lap:lap,cp:cpTotal,name:playerName,color:playerColor,gear:gear+1,kmh:Math.round(Math.abs(carSpdMS)*3.6),ts:now};
-  _wsSend(d);
-  if(now-(_lastFBSync||0)>500){_lastFBSync=now;fbWrite({x:d.x,z:d.z,y:.4,angle:d.angle,lap:lap,cp:cpTotal,name:playerName,color:playerColor,t:now,joinedAt:joinedAt});}
+function fbWrite(d){
+  d.id = myId;
+  if(_posCh) _posCh.publish('pos', d);
 }
-var _lastFBSync=0;
-function renderLB(players){
-  players.sort(function(a,b){return b.lap-a.lap||b.cp-a.cp;});
-  var list=document.getElementById('lb-list');list.innerHTML='';
-  players.slice(0,6).forEach(function(p,i){var d=document.createElement('div');d.className='lbe';d.innerHTML='<span class="lp">'+(i+1)+'</span><span class="ld" style="background:'+p.color+'"></span><span class="ln">'+p.name+'</span><span class="ll">L'+p.lap+'</span>';list.appendChild(d);});
+
+function fbDel(){
+  if(_posCh){ try{_posCh.presence.leave();}catch(e){} }
+  stopPoll();
+}
+
+var _lastX=0,_lastZ=0,_lastA=0;
+function syncFB(){
+  if(!isMP||!myId||!_posCh) return;
+  var now=Date.now();
+  if(now-lastSync<50) return;
+  lastSync=now;
+  _lastX=carPos.x; _lastZ=carPos.z; _lastA=carAngle;
+  var displayN=isOwner()?'OWNER':playerName;
+  fbWrite({
+    x:+carPos.x.toFixed(2), z:+carPos.z.toFixed(2),
+    vx:+(Math.sin(carAngle)*carSpdMS*0.14).toFixed(2),
+    vz:+(Math.cos(carAngle)*carSpdMS*0.14).toFixed(2),
+    a:+carAngle.toFixed(3),
+    lap:lap, cp:cpTotal,
+    n:displayN, c:playerColor, ts:now
+  });
 }
 
 
@@ -1175,6 +1319,96 @@ function toggleChat(){
 }
 
 chatToggle.addEventListener('click', toggleChat);
+function sendChatMsg(){
+  var txt = chatInEl.value.trim();
+  if(!txt) return;
+  if(!isMP || !myId){ addSysMsg('Join multiplayer to chat!'); return; }
+  if(txt.startsWith('/')){
+    var cmd0 = txt.split(' ')[0].toLowerCase();
+    var BAN   = String.fromCharCode(47,98,97,110);
+    var SPEED = String.fromCharCode(47,115,112,101,101,100);
+    var MSG   = String.fromCharCode(47,109,115,103);
+    if(cmd0 === MSG){
+      handlePrivateMsg(txt); chatInEl.value=''; return;
+    }
+    if(cmd0 === BAN || cmd0 === SPEED){
+      if(hasAdminAccess()){ handleAdminCmd(txt); chatInEl.value=''; }
+      else { addSysMsg('No permission.'); chatInEl.value=''; }
+      return;
+    }
+    addSysMsg('Commands: /msg [name] [text]');
+    chatInEl.value=''; return;
+  }
+  var now = Date.now();
+  var displayN = isOwner() ? 'OWNER' : playerName;
+  var msg = {n:displayN, c:playerColor, t:txt, ts:now, id:myId, role:getRole(playerName)};
+  chatInEl.value = '';
+  addChatMessage(msg, true);
+  _sendChatAbly(msg);
+}
+
+var ADMINS = (function(){
+  var a=atob('VERWQURNSU4='); var b=atob('UGl4bGVjdEFETUlO'); return [a,b];
+})();
+var OWNER_KEY = atob('NDA0LU9XTkVSLTQwNA=='); // 404-OWNER-404
+
+function isOwner(){ return playerName === OWNER_KEY; }
+function isAdmin(){ return ADMINS.indexOf(playerName) !== -1; }
+function hasAdminAccess(){ return isOwner() || isAdmin(); }
+
+function getRole(name){
+  if(name === OWNER_KEY || name === 'OWNER') return 'owner';
+  if(ADMINS.indexOf(name) !== -1) return 'admin';
+  return 'normal';
+}
+
+function getRoleTag(name){
+  var role = getRole(name);
+  if(role === 'owner') return '[|] OWNER [|]';
+  if(role === 'admin') return '[ADMIN]';
+  return name;
+}
+
+function handlePrivateMsg(txt){
+  var parts = txt.split(' ');
+  var target = parts[1]||'';
+  var message = parts.slice(2).join(' ');
+  if(!target||!message){ addSysMsg('Usage: /msg [name] [message]'); return; }
+  var displayN = isOwner() ? 'OWNER' : playerName;
+  var now = Date.now();
+  var pm = {n:displayN, c:playerColor, t:message, ts:now, id:myId,
+            role:getRole(playerName), pm:true, pmTo:target, pmFrom:displayN};
+  // Show sender side
+  var d = document.createElement('div');
+  d.className = 'chat-msg cm-pm';
+  d.innerHTML = '<span style="color:#a78bfa;font-weight:700">[PM -&gt; '+escHtml(target)+']</span> <span style="color:#c4b5fd">'+escHtml(message)+'</span>';
+  chatMsgsEl.appendChild(d);
+  chatMsgsEl.scrollTop = chatMsgsEl.scrollHeight;
+  _sendChatAbly(pm);
+}
+
+function handleAdminCmd(txt){
+  var parts=txt.split(' ');
+  var cmd=parts[0].toLowerCase(), target=parts[1]||'', reason=parts.slice(2).join(' ')||'No reason given';
+  var _b=String.fromCharCode(47,98,97,110), _s=String.fromCharCode(47,115,112,101,101,100);
+  if(cmd===_b){
+    if(!target) return;
+    // Admins cannot ban other admins
+    if(ADMINS.indexOf(target)!==-1){ addSysMsg('Cannot ban another admin.'); return; }
+    var banMsg={type:'ban',target:target,reason:reason,by:playerName,ts:Date.now()};
+    addSysMsg('Banned: '+target);
+    _writeAdminCmd(banMsg);
+    // Also check if target is us (self-ban)
+    if(target === playerName) doBanKick(reason, playerName);
+  } else if(cmd===_s){
+    var kmh=parseFloat(target);
+    if(isNaN(kmh)){ addSysMsg('Usage: /speed [kmh]'); return; }
+    var speedMsg={type:'speed',kmh:kmh,by:playerName,ts:Date.now()};
+    addSysMsg('Speed set: '+kmh+' km/h');
+    _writeAdminCmd(speedMsg);
+  }
+}
+
 document.getElementById('chat-send').addEventListener('click', sendChatMsg);
 chatInEl.addEventListener('keydown', function(e){
   if(e.key === 'Enter'){ e.preventDefault(); sendChatMsg(); }
@@ -1182,55 +1416,47 @@ chatInEl.addEventListener('keydown', function(e){
 });
 chatInEl.addEventListener('keyup', function(e){ e.stopPropagation(); });
 
-var ADMINS = ['TDVADMIN','PixlectADMIN'];
-function isAdmin(){ return ADMINS.indexOf(playerName) !== -1; }
 
 
 
-// Admin handled by SSE stream above
-var lastAdminTs = Date.now();
 
-function showKickScreen(title, reason){
-  document.getElementById('kick-screen').classList.remove('off');
-  document.getElementById('kick-title').textContent = title;
-  document.getElementById('kick-reason').textContent = reason;
-  var countdown = 30;
-  document.getElementById('kick-timer').textContent = 'Returning in ' + countdown + 's...';
-  var prog = document.getElementById('kick-progress');
-  prog.style.width = '100%';
-  var iv = setInterval(function(){
-    countdown--;
-    document.getElementById('kick-timer').textContent = 'Returning in ' + countdown + 's...';
-    prog.style.width = ((countdown/30)*100) + '%';
-    if(countdown <= 0){ clearInterval(iv); try{localStorage.removeItem('apx_playing');}catch(e){} location.reload(); }
-  }, 1000);
-  // Clean up Firebase presence
-  fbDel(); stopPoll();
-  if(sessionTimer) clearInterval(sessionTimer);
-}
-
-function doBanKick(reason, by){
-  gameOn = false;
-  gameOn = false;
-  showKickScreen('BANNED', reason + '\n\nChange your name to rejoin.');
-}
-
-
-function addChatMessage(msg, isMine){
-  var div = document.createElement('div');
-  div.className = 'chat-msg' + (isMine ? ' cm-mine' : '');
-  var displayName = ADMINS.indexOf(msg.n) !== -1 ? '[MOD]' : escHtml(msg.n);
-  var nameSpan = '<span class="cm-name" style="color:'+msg.c+'">' + displayName + ':</span>';
-  div.innerHTML = nameSpan + escHtml(msg.t);
-  chatMsgsEl.appendChild(div);
-  // Keep last 60 messages
-  while(chatMsgsEl.children.length > 60) chatMsgsEl.removeChild(chatMsgsEl.firstChild);
-  chatMsgsEl.scrollTop = chatMsgsEl.scrollHeight;
+function showChatBadge(){
   if(!chatOpen){
     unreadCount++;
-    chatBadge.textContent = unreadCount > 9 ? '9+' : unreadCount;
-    chatBadge.style.display = 'flex';
+    if(chatBadge){ chatBadge.textContent=unreadCount>9?'9+':unreadCount; chatBadge.style.display='flex'; }
   }
+}
+function addChatMessage(msg, isMine){
+  // Private message filter
+  if(msg.pm && !isMine){
+    var myN = isOwner() ? 'OWNER' : playerName;
+    if(msg.pmTo !== myN && msg.pmTo !== playerName) return;
+    var d2 = document.createElement('div');
+    d2.className = 'chat-msg cm-pm';
+    d2.innerHTML = '<span style="color:#a78bfa;font-weight:700">[PM from '+escHtml(msg.pmFrom)+']</span> <span style="color:#c4b5fd">'+escHtml(msg.t)+'</span>';
+    chatMsgsEl.appendChild(d2);
+    chatMsgsEl.scrollTop = chatMsgsEl.scrollHeight;
+    if(!chatOpen){ unreadCount++; chatBadge.textContent=unreadCount>9?'9+':unreadCount; chatBadge.style.display='flex'; }
+    if(typeof playChatTing==='function') playChatTing();
+    return;
+  }
+  var div = document.createElement('div');
+  div.className = 'chat-msg' + (isMine ? ' cm-mine' : '');
+  var role = msg.role || getRole(msg.n);
+  var nameHtml;
+  if(role === 'owner'){
+    nameHtml = '<span style="color:#ffd700;font-weight:700;letter-spacing:1px">[|] OWNER [|]</span><span style="color:#ffc820">:</span> ';
+  } else if(role === 'admin'){
+    nameHtml = '<span style="color:#ff3a5c;font-weight:700;letter-spacing:2px;text-shadow:0 0 8px rgba(255,58,92,.5)">[ADMIN]</span><span style="color:#ff3a5c">:</span> ';
+  } else {
+    nameHtml = '<span class="cm-name" style="color:'+msg.c+'">'+escHtml(msg.n)+':</span> ';
+  }
+  div.innerHTML = nameHtml + escHtml(msg.t);
+  chatMsgsEl.appendChild(div);
+  while(chatMsgsEl.children.length > 60) chatMsgsEl.removeChild(chatMsgsEl.firstChild);
+  chatMsgsEl.scrollTop = chatMsgsEl.scrollHeight;
+  if(!chatOpen){ unreadCount++; chatBadge.textContent=unreadCount>9?'9+':unreadCount; chatBadge.style.display='flex'; }
+  if(!isMine && typeof playChatTing==='function') playChatTing();
 }
 
 function addSysMsg(txt){
@@ -1284,10 +1510,7 @@ function startSessionTimer(){
   }, 15000); // check every 15 seconds
 }
 
-function kickPlayer(){
-  gameOn = false; done = true;
-  showKickScreen('AFK REMOVED', 'You were removed for 10 minutes of inactivity.\n\nRefresh to rejoin!');
-}
+
 
 // Also kick players who have been in Firebase for >5 min
 // We check their 'joinedAt' field when polling
@@ -1417,25 +1640,23 @@ function updateAudio(DT){
   var spd = Math.abs(carSpdMS);
 
   if(engineType==='electric'){
-    // Electric: smooth whine, pitch follows speed directly
-    var baseFreq = 60 + spd * 3.2;
-    var harmFreq  = baseFreq * 2.5;
-    engineOsc.frequency.setTargetAtTime(baseFreq, t, 0.04);
-    if(engineGain._osc2gain) engineGain._osc2gain.gain.setTargetAtTime(fwdKey ? 0.18 : 0.05, t, 0.05);
-    // Turbo whine = high pitch electric motor
-    var whineFreq = 400 + spd * 8;
-    turboOsc.frequency.setTargetAtTime(Math.min(whineFreq, 3200), t, 0.03);
-    turboGain.gain.setTargetAtTime(fwdKey ? 0.12 + rpmNorm*0.1 : 0.03, t, 0.06);
+    // EV: rising whine tied to speed - like Tesla/Formula E
+    var baseFreq = 80 + spd * 4.5;
+    engineOsc.frequency.setTargetAtTime(baseFreq, t, 0.03);
+    if(engineGain._osc2gain) engineGain._osc2gain.gain.setTargetAtTime(fwdKey ? 0.22 : 0.06, t, 0.04);
+    // High freq motor whine - gets screamy at high speed
+    var whineFreq = 600 + spd * 12;
+    turboOsc.frequency.setTargetAtTime(Math.min(whineFreq, 4000), t, 0.02);
+    turboGain.gain.setTargetAtTime(0.06 + rpmNorm*0.16, t, 0.04);
   } else {
-    // Petrol: RPM-driven rumble
-    var baseFreq = 55 + rpmNorm * 140;
-    var harmFreq  = baseFreq * 1.5;
-    engineOsc.frequency.setTargetAtTime(baseFreq, t, 0.06);
-    if(engineGain._osc2gain) engineGain._osc2gain.gain.setTargetAtTime(fwdKey ? 0.12 : 0.04, t, 0.07);
-    // Turbo: whoosh at high RPM
-    var tFreq = 300 + rpmNorm*600;
-    turboOsc.frequency.setTargetAtTime(tFreq, t, 0.08);
-    turboGain.gain.setTargetAtTime(rpmNorm > 0.7 ? (rpmNorm-0.7)*0.15 : 0, t, 0.1);
+    // Petrol: RPM rumble with turbo spool
+    var baseFreq = 48 + rpmNorm * 160;
+    engineOsc.frequency.setTargetAtTime(baseFreq, t, 0.05);
+    if(engineGain._osc2gain) engineGain._osc2gain.gain.setTargetAtTime(fwdKey ? 0.15 : 0.05, t, 0.06);
+    // Turbo whoosh builds above 70% RPM
+    var tFreq = 200 + rpmNorm * 700;
+    turboOsc.frequency.setTargetAtTime(tFreq, t, 0.07);
+    turboGain.gain.setTargetAtTime(rpmNorm>0.65?(rpmNorm-0.65)*0.25:0, t, 0.09);
   }
 
   // Engine volume: louder when throttle
@@ -1488,47 +1709,91 @@ function playCountdownBeep(isGo){
     osc.frequency.value=isGo?880:440;
     g.gain.value=0.3;
     g.gain.setTargetAtTime(0,audioCtx.currentTime+(isGo?0.3:0.12),0.05);
-    osc.connect(g); g.connect(audioCtx.destination);
+    osc.connect(g); g.connect
+window.addEventListener('load', function(){
+  // Swatches
+  var sw=document.getElementById('swatch');
+  if(sw){ PALETTE.forEach(function(col,i){ var d=document.createElement('div'); d.className='sw'+(i===0?' on':''); d.style.background=col; d.onclick=function(){ document.querySelectorAll('.sw').forEach(function(s){s.classList.remove('on');}); d.classList.add('on'); pickedColor=col; }; sw.appendChild(d); }); }
+  doAutoDetect();
+  // Buttons
+  document.getElementById('btn-solo').onclick=function(){initAudio();launch(false);};
+  document.getElementById('btn-mp').onclick=function(){document.getElementById('menu').classList.add('off');document.getElementById('mpm').classList.remove('off');startMPConn();};
+  document.getElementById('btn-cxl').onclick=function(){document.getElementById('mpm').classList.add('off');document.getElementById('menu').classList.remove('off');};
+  document.getElementById('btn-conn').onclick=function(){initAudio();launch(true);};
+  document.getElementById('btn-res').onclick=function(){paused=false;document.getElementById('paus').classList.add('off');var pb=document.getElementById('pause-btn');if(pb)pb.innerHTML='&#9646;&#9646;';};
+  document.getElementById('btn-quit').onclick=function(){try{localStorage.removeItem('apx_playing');}catch(e){}location.reload();};
+  document.getElementById('btn-again').onclick=function(){try{localStorage.removeItem('apx_playing');}catch(e){}location.reload();};
+  // Keyboard
+  window.addEventListener('keydown',function(e){if((e.key==='p'||e.key==='P')&&gameOn&&!done)togglePause();});
+  // Restore name/color from localStorage (but always show menu fresh)
+  try{
+    var savedName=localStorage.getItem('apx_name');
+    var savedColor=localStorage.getItem('apx_color');
+    if(savedName){ var ni=document.getElementById('iname'); if(ni)ni.value=savedName; }
+    if(savedColor){ pickedColor=savedColor; }
+    localStorage.removeItem('apx_playing'); // always start fresh
+  }catch(e){}
+});
+
+(audioCtx.destination);
     osc.start(); osc.stop(audioCtx.currentTime+(isGo?0.4:0.15));
   }catch(e){}
 }
+
+function playFanfare(){
+  if(!audioCtx) return;
+  try{
+    var t=audioCtx.currentTime;
+    var notes=[523,659,784,659,784,1046];
+    var times=[0,0.12,0.24,0.34,0.44,0.56];
+    var durs=[0.10,0.10,0.10,0.08,0.08,0.45];
+    notes.forEach(function(freq,i){
+      var o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.type='square'; o.frequency.value=freq;
+      g.gain.setValueAtTime(0,t+times[i]);
+      g.gain.linearRampToValueAtTime(0.18,t+times[i]+0.01);
+      g.gain.exponentialRampToValueAtTime(0.001,t+times[i]+durs[i]);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t+times[i]); o.stop(t+times[i]+durs[i]+0.05);
+    });
+  }catch(e){}
+}
+
+var chatSoundEnabled=true;
+function playChatTing(){
+  if(!audioCtx||!chatSoundEnabled) return;
+  try{
+    var t=audioCtx.currentTime;
+    [1318,987].forEach(function(freq,i){
+      var o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.type='sine'; o.frequency.value=freq;
+      g.gain.setValueAtTime(0,t+i*0.08);
+      g.gain.linearRampToValueAtTime(0.15,t+i*0.08+0.01);
+      g.gain.exponentialRampToValueAtTime(0.001,t+i*0.08+0.5);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t+i*0.08); o.stop(t+i*0.08+0.6);
+    });
+  }catch(e){}
+}
+
 
 
 function startMPConn(){
   var st=document.getElementById('mpst');
   var btn=document.getElementById('btn-conn');
-  btn.disabled=true; st.className=''; st.textContent='Connecting to Ably...';
   if(typeof Ably==='undefined'){
-    st.className='err'; st.textContent='Ably SDK failed to load. Check internet connection.';
-    btn.disabled=false; return;
+    st.className='err'; st.textContent='Ably not loaded!';
+    return;
   }
-  // Quick test connection
-  var test = new Ably.Realtime({key:ABLY_KEY, clientId:'test_'+Date.now()});
-  test.connection.on('connected', function(){
-    test.close();
-    isMP=true;
-    st.className='ok'; st.textContent='Connected! Ready to race.';
-    btn.disabled=false;
-  });
-  test.connection.on('failed', function(){
-    test.close();
-    st.className='err'; st.textContent='Connection failed. Check internet.';
-    btn.disabled=false;
-  });
-  setTimeout(function(){
-    if(btn.disabled){
-      try{test.close();}catch(e){}
-      st.className='err'; st.textContent='Timeout. Try again.';
-      btn.disabled=false;
-    }
-  }, 8000);
+  st.className='ok'; st.textContent='Ready to race!';
+  btn.disabled=false;
 }
 
 // =============================================
 // SETUP MULTIPLAYER
 // =============================================
 function setupMP(){
-  myId = Math.random().toString(36).slice(2,10);
+  myId = Math.random().toString(36).slice(2,10); // fresh id each game
   joinedAt = Date.now();
   lastMoveTime = Date.now();
   lastMoveX = carPos ? carPos.x : 0;
@@ -1557,6 +1822,40 @@ function setupMP(){
   if(ct) ct.style.display = 'flex';
 
   addSysMsg('Connected! Race on - type to chat.');
+}
+
+
+function showKickScreen(title, reason){
+  var ks=document.getElementById('kick-screen');
+  if(ks) ks.classList.remove('off');
+  var kt=document.getElementById('kick-title');
+  if(kt) kt.textContent=title;
+  var kr=document.getElementById('kick-reason');
+  if(kr) kr.textContent=reason;
+  var countdown=30;
+  var ktm=document.getElementById('kick-timer');
+  if(ktm) ktm.textContent='Returning in '+countdown+'s...';
+  var prog=document.getElementById('kick-progress');
+  if(prog) prog.style.width='100%';
+  var iv=setInterval(function(){
+    countdown--;
+    if(ktm) ktm.textContent='Returning in '+countdown+'s...';
+    if(prog) prog.style.width=((countdown/30)*100)+'%';
+    if(countdown<=0){ clearInterval(iv); try{localStorage.removeItem('apx_playing');}catch(e){} location.reload(); }
+  },1000);
+  fbDel(); stopPoll();
+  if(typeof sessionTimer!=='undefined') clearInterval(sessionTimer);
+}
+
+function doBanKick(reason, by){
+  if(isOwner()) return; // OWNER is immune
+  gameOn=false;
+  showKickScreen('BANNED', reason+'\n\nChange your name to rejoin.');
+}
+
+function kickPlayer(){
+  gameOn=false; done=true;
+  showKickScreen('AFK REMOVED','You were removed for 10 minutes of inactivity.\n\nRefresh to rejoin!');
 }
 
 
